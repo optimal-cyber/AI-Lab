@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zero Trust AI Lab — Optimal Labs</title>
+<meta name="description" content="A reference design for SBIR/CMMC-bound teams who need defensible AI tooling without enterprise Zero Trust vendor pricing. Cloudflare Zero Trust + AWS + Okta + open source.">
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --line:#30363d; --fg:#e6edf3;
+    --muted:#9aa7b2; --accent:#4ea1ff; --accent2:#3fb950;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--fg);
+    font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  a{color:var(--accent); text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:880px; margin:0 auto; padding:0 20px}
+  header{padding:64px 0 40px; border-bottom:1px solid var(--line)}
+  .tag{display:inline-block; font-size:12px; letter-spacing:.08em; text-transform:uppercase;
+       color:var(--accent2); border:1px solid var(--line); border-radius:999px; padding:4px 12px; margin-bottom:18px}
+  h1{font-size:38px; line-height:1.15; margin:0 0 12px}
+  .lede{font-size:19px; color:var(--muted); margin:0; max-width:46em}
+  section{padding:40px 0; border-bottom:1px solid var(--line)}
+  h2{font-size:22px; margin:0 0 16px}
+  p{margin:0 0 14px}
+  .muted{color:var(--muted)}
+  ul{margin:0 0 6px; padding-left:20px}
+  li{margin:8px 0}
+  code{background:var(--panel); border:1px solid var(--line); border-radius:4px; padding:1px 6px; font-size:13px}
+  table{width:100%; border-collapse:collapse; font-size:15px; margin-top:6px}
+  th,td{text-align:left; padding:10px 12px; border-bottom:1px solid var(--line); vertical-align:top}
+  th{color:var(--muted); font-weight:600; font-size:13px; text-transform:uppercase; letter-spacing:.04em}
+  td.oss{color:var(--accent2)}
+  figure{margin:0; overflow-x:auto}
+  svg{max-width:100%; height:auto; display:block}
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:10px 28px}
+  @media(max-width:620px){.grid{grid-template-columns:1fr} h1{font-size:30px}}
+  footer{padding:32px 0 64px; color:var(--muted); font-size:13px}
+  .links a{margin-right:18px; display:inline-block}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <span class="tag">Reference architecture · Optimal, LLC · CAGE 14HQ0</span>
+    <h1>Zero Trust AI Lab</h1>
+    <p class="lede">A reference design for SBIR/CMMC-bound teams who need defensible
+    AI tooling without enterprise Zero Trust vendor pricing.</p>
+  </header>
+
+  <section id="what">
+    <h2>What this is</h2>
+    <p>This is a <strong>reference design, not a product</strong> — a credible,
+    affordable counterpart to a Zscaler-based Zero Trust AI reference architecture,
+    assembled from <strong>Cloudflare Zero Trust, AWS, Okta, and open-source
+    components</strong>. It demonstrates the controls a defense-industrial-base or
+    SBIR-stage team actually needs around an LLM gateway: identity-aware access with
+    MFA, no public ingress, inline AI guardrails, workload egress allowlisting, and
+    an MCP server that queries your <em>own</em> compliance evidence.</p>
+    <p>It was inspired by Will Grana's Zscaler reference lab; this version answers
+    the question "what does a Cloudflare-and-open-source counterpart look like, and
+    what does it cost?" — roughly <strong>$75–85/month</strong> at idle.</p>
+    <p class="muted">Built by Optimal, LLC (CAGE 14HQ0) on personal infrastructure
+    and personal time. It holds no client data and is not itself a compliance
+    attestation.</p>
+  </section>
+
+  <section id="arch">
+    <h2>Architecture</h2>
+    <figure aria-label="Architecture diagram">
+    <svg viewBox="0 0 820 430" role="img" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">
+      <defs>
+        <marker id="a" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
+          <path d="M0,0 L7,3 L0,6 Z" fill="#9aa7b2"/>
+        </marker>
+        <style>
+          .box{fill:#161b22; stroke:#30363d; rx:8}
+          .t{fill:#e6edf3; font-size:13px}
+          .s{fill:#9aa7b2; font-size:11px}
+          .acc{fill:#4ea1ff; font-size:11px}
+          .ln{stroke:#9aa7b2; stroke-width:1.4; fill:none; marker-end:url(#a)}
+        </style>
+      </defs>
+
+      <rect class="box" x="300" y="10" width="220" height="44" rx="8"/>
+      <text class="t" x="410" y="30" text-anchor="middle">User — browser, any network</text>
+      <text class="s" x="410" y="46" text-anchor="middle">no VPN; no trusted network</text>
+
+      <path class="ln" d="M410,54 L410,80"/>
+
+      <rect class="box" x="250" y="80" width="320" height="60" rx="8"/>
+      <text class="t" x="410" y="104" text-anchor="middle">Cloudflare Access  (identity-aware proxy)</text>
+      <text class="acc" x="410" y="124" text-anchor="middle">OIDC → Okta · MFA · group claims · device posture</text>
+
+      <path class="ln" d="M410,140 L410,166"/>
+      <text class="s" x="540" y="158" text-anchor="middle">Cloudflare Tunnel (no public ingress)</text>
+
+      <rect class="box" x="60" y="166" width="220" height="58" rx="8"/>
+      <text class="t" x="170" y="190" text-anchor="middle">chat.lab — Open WebUI</text>
+      <text class="s" x="170" y="208" text-anchor="middle">trusted-header SSO · 127.0.0.1</text>
+
+      <rect class="box" x="540" y="166" width="220" height="58" rx="8"/>
+      <text class="t" x="650" y="190" text-anchor="middle">gateway.lab — LiteLLM admin</text>
+      <text class="s" x="650" y="208" text-anchor="middle">direct OIDC · admins + MFA + US</text>
+
+      <path class="ln" d="M410,166 L180,166"/>
+      <path class="ln" d="M410,166 L640,166"/>
+
+      <path class="ln" d="M170,224 L170,250 L410,250 L410,266"/>
+      <path class="ln" d="M650,224 L650,250 L410,250"/>
+
+      <rect class="box" x="270" y="266" width="280" height="58" rx="8"/>
+      <text class="t" x="410" y="290" text-anchor="middle">LiteLLM gateway</text>
+      <text class="acc" x="410" y="308" text-anchor="middle">NeMo Guardrails (DaaS) → OpenAI / Anthropic</text>
+
+      <path class="ln" d="M550,295 L640,295 L640,330"/>
+      <rect class="box" x="540" y="330" width="240" height="58" rx="8"/>
+      <text class="t" x="660" y="354" text-anchor="middle">compliance-mcp (read-only)</text>
+      <text class="s" x="660" y="372" text-anchor="middle">SAM.gov · NIST 800-53 · POA&amp;Ms · CMMC</text>
+
+      <path class="ln" d="M270,295 L150,295 L150,330"/>
+      <rect class="box" x="30" y="330" width="240" height="58" rx="8"/>
+      <text class="t" x="150" y="354" text-anchor="middle">Squid egress allowlist proxy</text>
+      <text class="s" x="150" y="372" text-anchor="middle">default-deny · only approved domains</text>
+
+      <text class="s" x="410" y="416" text-anchor="middle">All workloads run in private AWS subnets · SSM-only admin · no SSH</text>
+    </svg>
+    </figure>
+  </section>
+
+  <section id="stack">
+    <h2>The stack — commercial reference vs. this lab</h2>
+    <table>
+      <thead><tr><th>Capability</th><th>Commercial (Zscaler-style)</th><th>This lab</th></tr></thead>
+      <tbody>
+        <tr><td>Private app access</td><td>ZPA</td><td class="oss">Cloudflare Access + Tunnel (OIDC → Okta)</td></tr>
+        <tr><td>Workload egress control</td><td>ZIA / Secure Web Gateway</td><td class="oss">Squid allowlist proxy (AWS NFW optional)</td></tr>
+        <tr><td>AI guard / prompt firewall</td><td>AI Guard</td><td class="oss">NeMo Guardrails, inline DaaS</td></tr>
+        <tr><td>Data-loss / secret detection</td><td>Inline DLP / CASB</td><td class="oss">NeMo secret + PII detectors · Gateway DLP</td></tr>
+        <tr><td>Identity, MFA, groups</td><td>IdP integration</td><td class="oss">Okta (OIDC, group claims, MFA)</td></tr>
+        <tr><td>Device trust / posture</td><td>Client connector posture</td><td class="oss">Cloudflare WARP device posture</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="different">
+    <h2>What's worth defending here</h2>
+    <ul>
+      <li><strong>Two-pattern SSO split.</strong> Open WebUI uses trusted-header SSO
+      (the edge proves identity); the LiteLLM admin panel runs its own OIDC handshake.
+      Match the auth mechanism to the blast radius.</li>
+      <li><strong>Read-only MCP first.</strong> The compliance MCP exposes only read
+      tools. A prompt-injection success can read seeded lab data — not mutate your
+      evidence store. Write mode is a separate, gated project.</li>
+      <li><strong>Detection-as-a-service guardrails.</strong> Inline secret, PII
+      (Luhn-checked), and prompt-injection detection on every request — fail-closed.</li>
+      <li><strong>Workload egress allowlisting.</strong> The part most cloud teams
+      skip: app hosts can't reach the internet except through a default-deny domain
+      allowlist. No SSH; SSM-only admin; no public ingress to any instance.</li>
+      <li><strong>Compliance teams should run MCP against their own evidence</strong>
+      — POA&amp;Ms, the NIST catalog, CMMC status, and a real SAM.gov lookup — inside
+      a gateway they control, not a vendor's API.</li>
+    </ul>
+  </section>
+
+  <section id="author">
+    <h2>Author</h2>
+    <p>Ryan — founder of Optimal Labs, Inc. / Optimal, LLC. CISSP, CCSP; FedRAMP 3PAO
+    assessor; U.S. Air Force veteran (Security Forces). Based in Tampa.</p>
+    <p class="muted">This lab is a personal reference design, separate from any client
+    or assessment work.</p>
+    <p class="links">
+      <!-- TODO: set the LinkedIn URL -->
+      <a href="https://www.linkedin.com/" rel="me">LinkedIn</a>
+      <a href="https://github.com/optimal-cyber/AI-Lab">GitHub — source</a>
+      <a href="https://outpost.gooptimal.io">Outpost newsletter</a>
+    </p>
+  </section>
+
+  <footer>
+    <p>This is a <strong>reference design</strong>, not a product and
+    <strong>not a CMMC assessment boundary</strong> or attestation. It processes no
+    client data and does not touch any FedRAMP boundary. Controls are illustrative of
+    a defensible posture, not a claim of compliance. © Optimal, LLC.</p>
+  </footer>
+
+</div>
+</body>
+</html>
