@@ -1,0 +1,89 @@
+{
+  "_meta": {
+    "catalog": "NIST SP 800-53 Rev 5 (subset)",
+    "note": "Illustrative subset shipped so the MCP server is functional out of the box. Control text is abridged. CMMC L2 mappings are illustrative crosswalks to CMMC 2.0 Level 2 / NIST SP 800-171 practice IDs, not an authoritative mapping.",
+    "count": 10
+  },
+  "controls": {
+    "AC-2": {
+      "id": "AC-2",
+      "family": "Access Control",
+      "title": "Account Management",
+      "text": "Manage system accounts: define account types; assign account managers; establish conditions for membership; authorize, create, enable, modify, disable, and remove accounts per policy; and monitor account use.",
+      "related": ["AC-3", "AC-6", "IA-2", "IA-5", "AU-2"],
+      "cmmc_l2_practices": ["AC.L2-3.1.1", "AC.L2-3.1.2"]
+    },
+    "AC-3": {
+      "id": "AC-3",
+      "family": "Access Control",
+      "title": "Access Enforcement",
+      "text": "Enforce approved authorizations for logical access to information and system resources in accordance with applicable access control policies.",
+      "related": ["AC-2", "AC-6", "SC-7"],
+      "cmmc_l2_practices": ["AC.L2-3.1.1", "AC.L2-3.1.2"]
+    },
+    "AU-2": {
+      "id": "AU-2",
+      "family": "Audit and Accountability",
+      "title": "Event Logging",
+      "text": "Identify the event types the system is capable of logging in support of the audit function; coordinate the logging function with other organizational entities; and review/update logged event types periodically.",
+      "related": ["AU-6", "AC-2", "SI-4"],
+      "cmmc_l2_practices": ["AU.L2-3.3.1", "AU.L2-3.3.2"]
+    },
+    "AU-6": {
+      "id": "AU-6",
+      "family": "Audit and Accountability",
+      "title": "Audit Record Review, Analysis, and Reporting",
+      "text": "Review and analyze system audit records for indications of inappropriate or unusual activity, and report findings to designated personnel. Adjust review frequency based on risk.",
+      "related": ["AU-2", "SI-4", "IR-4"],
+      "cmmc_l2_practices": ["AU.L2-3.3.3", "AU.L2-3.3.5"]
+    },
+    "CM-7": {
+      "id": "CM-7",
+      "family": "Configuration Management",
+      "title": "Least Functionality",
+      "text": "Configure the system to provide only mission-essential capabilities; prohibit or restrict the use of unnecessary functions, ports, protocols, software, and services.",
+      "related": ["AC-3", "SC-7", "SI-2"],
+      "cmmc_l2_practices": ["CM.L2-3.4.6", "CM.L2-3.4.7", "CM.L2-3.4.8"]
+    },
+    "IA-2": {
+      "id": "IA-2",
+      "family": "Identification and Authentication",
+      "title": "Identification and Authentication (Organizational Users)",
+      "text": "Uniquely identify and authenticate organizational users and associate that identity with processes acting on their behalf; implement multifactor authentication for network access to privileged and non-privileged accounts.",
+      "related": ["IA-5", "AC-2", "AC-3"],
+      "cmmc_l2_practices": ["IA.L2-3.5.1", "IA.L2-3.5.2", "IA.L2-3.5.3"]
+    },
+    "IA-5": {
+      "id": "IA-5",
+      "family": "Identification and Authentication",
+      "title": "Authenticator Management",
+      "text": "Manage system authenticators by verifying identity before issuance; establishing initial content; enforcing strength and lifetime; protecting authenticators from disclosure; and changing default authenticators.",
+      "related": ["IA-2", "AC-2"],
+      "cmmc_l2_practices": ["IA.L2-3.5.7", "IA.L2-3.5.8", "IA.L2-3.5.10"]
+    },
+    "RA-5": {
+      "id": "RA-5",
+      "family": "Risk Assessment",
+      "title": "Vulnerability Monitoring and Scanning",
+      "text": "Monitor and scan for vulnerabilities in the system and hosted applications; analyze reports; remediate legitimate vulnerabilities within defined timeframes; and share information with designated personnel.",
+      "related": ["SI-2", "CM-7", "CA-7"],
+      "cmmc_l2_practices": ["RA.L2-3.11.2", "RA.L2-3.11.3"]
+    },
+    "SC-7": {
+      "id": "SC-7",
+      "family": "System and Communications Protection",
+      "title": "Boundary Protection",
+      "text": "Monitor and control communications at the external managed interfaces and key internal interfaces of the system; implement subnetworks for publicly accessible components; and connect to external networks only through managed interfaces (boundary protection devices).",
+      "related": ["AC-3", "AC-4", "CM-7", "SI-4"],
+      "cmmc_l2_practices": ["SC.L2-3.13.1", "SC.L2-3.13.2", "SC.L2-3.13.5"]
+    },
+    "SI-2": {
+      "id": "SI-2",
+      "family": "System and Information Integrity",
+      "title": "Flaw Remediation",
+      "text": "Identify, report, and correct system flaws; test software and firmware updates for effectiveness and side effects before installation; and install security-relevant updates within defined timeframes.",
+      "related": ["RA-5", "CM-7", "SI-4"],
+      "cmmc_l2_practices": ["SI.L2-3.14.1", "SI.L2-3.14.2"]
+    }
+  }
+}
