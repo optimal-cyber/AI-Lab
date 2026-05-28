@@ -1,5 +1,11 @@
 # NeMo Guardrails DaaS service (ADR-003)
-FROM python:3.11-slim
+# Using the full python:3.11 image (not -slim) because nemoguardrails pulls
+# 'annoy' as a transitive dep, and annoy has no pre-built wheel for slim's
+# Debian base — it compiles from source and needs g++/gcc that slim doesn't
+# ship. Full image ships build tools; saves us an apt-install step (and
+# avoids needing deb.debian.org in the squid allowlist). Net cost: ~700 MB
+# of extra layers, which is fine for a lab.
+FROM python:3.11
 
 WORKDIR /app
 
