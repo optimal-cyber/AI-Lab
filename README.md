@@ -28,7 +28,7 @@ notes) lands in **Phase 6**.
 | 1 | Terraform AWS baseline (VPC, Squid egress, EC2, secrets, logging) | ✅ fmt+validate clean |
 | 1.5 | Identity plane — Okta + Cloudflare Access SSO | ✅ runbooks + TF + scripts |
 | 2 | Docker Compose stacks (Open WebUI, LiteLLM, NeMo) | ✅ stacks validate; detectors 23/23 |
-| 3 | Compliance MCP server (the differentiator) | ⬜ |
+| 3 | Compliance MCP server (the differentiator) | ✅ 47 tests, 88% cov |
 | 4 | Cloudflare config (tunnels, Access apps, Gateway, DNS) | ⬜ |
 | 4.5 | Landing page at `lab.gooptimal.io` | ⬜ |
 | 5 | Test plan + demonstration evidence | ⬜ |
