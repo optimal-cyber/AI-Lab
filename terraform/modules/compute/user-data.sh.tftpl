@@ -52,11 +52,19 @@ systemctl restart amazon-ssm-agent
 dnf -y update
 dnf -y install docker amazon-cloudwatch-agent
 
-# ---- Docker Compose v2 plugin (release binary via proxy) --------------------
+# ---- Docker Compose v2 plugin + buildx (release binaries via proxy) ---------
+# buildx is REQUIRED by recent docker-compose plugin versions for `--build`
+# (compose v2.30+ delegates builds to buildx >= 0.17). Without it
+# `compose up --build` errors with "compose build requires buildx 0.17.0 or later".
 install -d /usr/libexec/docker/cli-plugins
 curl -fsSL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 \
   -o /usr/libexec/docker/cli-plugins/docker-compose
 chmod +x /usr/libexec/docker/cli-plugins/docker-compose
+
+BUILDX_VER="v0.34.1"
+curl -fsSL "https://github.com/docker/buildx/releases/download/$${BUILDX_VER}/buildx-$${BUILDX_VER}.linux-amd64" \
+  -o /usr/libexec/docker/cli-plugins/docker-buildx
+chmod +x /usr/libexec/docker/cli-plugins/docker-buildx
 
 # ---- cloudflared (Cloudflare rpm repo) --------------------------------------
 curl -fsSL https://pkg.cloudflare.com/cloudflared-ascii.repo -o /etc/yum.repos.d/cloudflared.repo
