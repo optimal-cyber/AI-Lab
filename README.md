@@ -29,8 +29,8 @@ notes) lands in **Phase 6**.
 | 1.5 | Identity plane — Okta + Cloudflare Access SSO | ✅ runbooks + TF + scripts |
 | 2 | Docker Compose stacks (Open WebUI, LiteLLM, NeMo) | ✅ stacks validate; detectors 23/23 |
 | 3 | Compliance MCP server (the differentiator) | ✅ 47 tests, 88% cov |
-| 4 | Cloudflare config (tunnels, Access apps, Gateway, DNS) | ⬜ |
-| 4.5 | Landing page at `lab.gooptimal.io` | ⬜ |
+| 4 | Cloudflare config (tunnels, Access apps, Gateway, DNS) | ✅ runbooks + DNS |
+| 4.5 | Landing page at `lab.gooptimal.io` | ✅ static, ~10kb |
 | 5 | Test plan + demonstration evidence | ⬜ |
 | 6 | Full README + LinkedIn talking points | ⬜ |
 
