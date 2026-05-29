@@ -49,11 +49,10 @@ services:
     command: ["tunnel", "--no-autoupdate", "run"]
     environment:
       TUNNEL_TOKEN: "${CLOUDFLARE_TUNNEL_TOKEN}"
-      # Tunnel data plane uses port 7844 direct (SG-allowed). Control-plane HTTP
-      # calls (api.cloudflare.com) go through the Squid allowlist proxy.
-      HTTPS_PROXY: "${HTTPS_PROXY:-}"
-      HTTP_PROXY: "${HTTP_PROXY:-}"
-      NO_PROXY: "${NO_PROXY:-}"
+      # IMPORTANT: do NOT set HTTP(S)_PROXY here. cloudflared's Go HTTP transport
+      # would otherwise route origin requests (http://open-webui:8080) through
+      # Squid, which has no idea about chat.ironechelon.com and returns 403. The
+      # tunnel data plane uses port 7844 direct (SG-allowed) — no proxy needed.
     depends_on:
       open-webui:
         condition: service_healthy

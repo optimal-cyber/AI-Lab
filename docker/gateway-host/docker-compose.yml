@@ -106,9 +106,12 @@ services:
     command: ["tunnel", "--no-autoupdate", "run"]
     environment:
       TUNNEL_TOKEN: "${CLOUDFLARE_TUNNEL_TOKEN}"
-      HTTPS_PROXY: "${HTTPS_PROXY:-}"
-      HTTP_PROXY: "${HTTP_PROXY:-}"
-      NO_PROXY: "${NO_PROXY:-}"
+      # IMPORTANT: do NOT set HTTP(S)_PROXY here. cloudflared's Go HTTP transport
+      # would otherwise route origin requests (http://litellm:4000) through Squid,
+      # which has no idea about gateway.ironechelon.com and returns 403. The
+      # tunnel data plane uses port 7844 direct (SG-allowed) — no proxy needed.
+      # The api.cloudflare.com auto-update probe will fail (degraded transport)
+      # without a proxy, which is just a warning, not a tunnel-blocker.
     depends_on:
       litellm:
         condition: service_started
