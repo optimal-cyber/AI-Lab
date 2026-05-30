@@ -129,7 +129,7 @@ Here is the end-to-end flow when a user sends a prompt:
 - The provider API call and response traverse the secure workload egress path through **Squid**.
 - LiteLLM sends the model response back through **NeMo's output rail** before returning it to the user.
 
-> 🔴 **SCREENSHOT S-3 — Sequence diagram (Life of a Prompt)**
+> Sequence diagram (Life of a Prompt)**
 > Render the Mermaid below at mermaid.live in dark theme, screenshot. Replace this callout.
 
 ```mermaid
@@ -185,8 +185,10 @@ The two apps are separate Access applications:
 
 Access policy lives in Cloudflare and references identity groups from Okta. **A normal user can reach the chat app, but that does not imply reachability to the LiteLLM admin panel, the AWS subnet, or anything else in the VPC.** The chat app and the AI gateway admin panel are not the same risk profile, and the gating reflects that.
 
-> 🔴 **SCREENSHOT S-4 — Cloudflare Zero Trust tunnels list**
-> Zero Trust dashboard → **Networks → Tunnels**. Screenshot the list showing `lab-chat` and `lab-gateway` both `HEALTHY` with their uptimes and connector counts. **Crop the bottom of the page** (the Cloudflare account info chrome).
+> Cloudflare Zero Trust tunnels list**
+> Zero Trust dashboard → **Networks → Tunnels**. Screenshot the list showing `lab-chat` and `lab-gateway` both `HEALTHY` with their uptimes and connector counts. **Crop the bottom of the page** (the Cloudflare account info chrome).\
+> <img width="2548" height="801" alt="Screenshot 2026-05-29 at 10 07 50 PM" src="https://github.com/user-attachments/assets/cd882b4f-76db-40eb-b0ab-e3d173211837" />
+
 
 *Cloudflare gives me app-specific reachability through outbound-initiated Tunnel connectors. Users do not receive broad subnet access just because they can open the chat app. The architectural property is the same one enterprise ZTNA stacks (ZPA, Netskope Private Access, Cisco Duo Network Gateway) deliver — the substitution here is the cost and licensing posture, not the security model.*
 
@@ -235,9 +237,24 @@ ports:
 # port. This single bind is the entire boundary for this app.
 ```
 
-> 🔴 **SCREENSHOT S-5 — Open WebUI signed in**
+> Open WebUI signed in**
 > Open `https://chat.optimallabs.io` after completing the full SSO chain. Capture the **whole window** with:
-> - URL bar showing `chat.optimallabs.io` (private window so no "...padlock" interstitial)
+> - URL bar showing `chat.optimallabs.io` (private window so no "...padlock" interstitial
+<img width="639" height="756" alt="Screenshot 2026-05-29 at 10 11 43 PM" src="https://github.com/user-attachments/assets/fc73a125-9710-4a6f-9b43-5d4a93db6ac7" />
+<img width="2408" height="1243" alt="Screenshot 2026-05-29 at 10 13 09 PM" src="https://github.com/user-attachments/assets/aa3eba0b-b2f6-408b-85a9-6618463cb855" />
+<img width="1217" height="1060" alt="Screenshot 2026-05-29 at 10 13 41 PM" src="https://github.com/user-attachments/assets/5b414535-f5f7-4897-ae5c-ee9adbe01cab" />
+<img width="2521" height="1253" alt="Screenshot 2026-05-29 at 10 14 21 PM" src="https://github.com/user-attachments/assets/504a28de-699f-47b7-b9e5-0b3b1930d3ce" />
+
+`https://chat.optimallabs.io`
+
+# Logs<img width="2185" height="1156" alt="Screenshot 2026-05-29 at 10 15 43 PM" src="https://github.com/user-attachments/assets/cbe79596-da95-4ebf-9a89-d22241a4b9fc" />
+
+<img width="2522" height="1251" alt="Screenshot 2026-05-29 at 10 14 46 PM" src="https://github.com/user-attachments/assets/4e86e036-c0ef-4709-8a71-cf55ec8e46c9" />
+
+
+
+
+
 > - Top-right showing **`Hello, ryan@gooptimal.io`** (trusted-header SSO populated)
 > - Model picker at the top set to `claude-opus-4-7` (or whichever model you want to feature)
 > - One real prompt + response visible (the Judaism/Catholicism comparison you ran works perfectly here — it shows the lab does substantive work, not just block things)
