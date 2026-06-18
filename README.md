@@ -632,6 +632,9 @@ near-term items below extend it.
 - **The threat model:** [`docs/threat-model.md`](docs/threat-model.md) — STRIDE
   per component + AI-specific.
 - **Run the smoke tests:** [`docs/test-plan.md`](docs/test-plan.md).
+- **Demo the live gateway:** [`docs/demo-live.md`](docs/demo-live.md) — redeploy
+  the current config + walk the Admin control plane and the endpoint proof
+  (deploy mechanism in [`docs/deploy.md`](docs/deploy.md)).
 - **The blog post:** [`docs/blog-zero-trust-ai-lab.md`](docs/blog-zero-trust-ai-lab.md) —
   end-to-end walkthrough of the reference design with all Mermaid sources
   inline and screenshot-capture instructions marked as `🔴 SCREENSHOT S-X`
@@ -642,4 +645,4 @@ near-term items below extend it.
 ---
 
 *Reference design © Optimal, LLC (CAGE 14HQ0). Built by Ryan on personal time
-and personal infrastructure. Source: [github.com/optimal-cyber/AI-Lab](https://github.com/optimal-cyber/AI-Lab).*
+and personal infrastructure. Source: [github.com/optimal-cyber/AI-Gateway](https://github.com/optimal-cyber/AI-Gateway).*

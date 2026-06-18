@@ -14,7 +14,7 @@ The problem most reference architectures share is that they're written around en
 
 The control points are explicit. The substitutions are documented. The security posture is the same shape a 3PAO will expect to see at a higher-budget engagement.
 
-The lab runs in a single AWS region, costs about **$95/month**, and the entire build lives at `github.com/optimal-cyber/AI-Lab` — Terraform, 13 ADRs, the test plan, the audit-log shapes. This post walks the end-to-end life of a prompt, what each component does, the design choices that mattered, and the evidence trail at each layer.
+The lab runs in a single AWS region, costs about **$95/month**, and the entire build lives at `github.com/optimal-cyber/AI-Gateway` — Terraform, 13 ADRs, the test plan, the audit-log shapes. This post walks the end-to-end life of a prompt, what each component does, the design choices that mattered, and the evidence trail at each layer.
 
 The control band → component mapping:
 
@@ -654,7 +654,7 @@ The most credible security artifact in this post isn't the "blocked by guardrail
 
 Reference architectures are a public good. If you're in the SBIR / CMMC / FedRAMP space and you've stood something like this up, publish it — even at forum-post depth. The pattern matching saves the next team a month of dead ends, and the more of them that exist, the lower the bar drops for "defensible AI security at small-shop scale."
 
-**Repo:** [`github.com/optimal-cyber/AI-Lab`](https://github.com/optimal-cyber/AI-Lab) — full Terraform, ADRs 001–013, the test plan, the audit-log shapes, and the structured JSON examples shown above.
+**Repo:** [`github.com/optimal-cyber/AI-Gateway`](https://github.com/optimal-cyber/AI-Gateway) — full Terraform, ADRs 001–013, the test plan, the audit-log shapes, and the structured JSON examples shown above.
 
 If you want to talk SBIR-stage AI security architecture, CMMC L2 self-assessment, or 3PAO walkthroughs — I'm **Ryan Gutwein at Optimal Labs** (`ryan@gooptimal.io`), CAGE 14HQ0.
 

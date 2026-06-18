@@ -10,11 +10,11 @@ access, so it is **not** behind Cloudflare Access (that would defeat its purpose
 
 ## Deploy (Cloudflare Pages)
 
-Connected to the GitHub repo (`optimal-cyber/AI-Lab`), Pages auto-deploys on push.
+Connected to the GitHub repo (`optimal-cyber/AI-Gateway`), Pages auto-deploys on push.
 
 **Dashboard path:**
 1. Cloudflare dashboard → **Workers & Pages → Create → Pages → Connect to Git**.
-2. Pick `optimal-cyber/AI-Lab`.
+2. Pick `optimal-cyber/AI-Gateway`.
 3. Build settings:
    - **Framework preset:** None
    - **Build command:** *(empty)*
