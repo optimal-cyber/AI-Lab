@@ -9,6 +9,12 @@ This document is the strategic arc *past* the built lab (Phases 0–6 in the
 implementation. Every phase lands behind one or more ADRs in
 [`decisions.md`](decisions.md).
 
+> **Status (config-ready):** G1–G5 have all landed as ADRs 014–019 +
+> [`control-mapping.md`](control-mapping.md). The gov boundaries are wired but not
+> live (no gov-cloud credentials in this lab) and remote TF state is not yet
+> migrated — both are the gates that open before a first real tenant. The *design*
+> is complete end-to-end; *going live* is provisioning, not more design.
+
 > **Honesty guardrail (applies to every phase, non-negotiable):** this stays a
 > **reference architecture / pattern**. "Government-ready" describes a model
 > *deployment posture* (served from a compliant boundary, with documented

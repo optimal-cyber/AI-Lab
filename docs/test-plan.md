@@ -171,6 +171,29 @@ dimensions, and the residency difference is evident in the decision logs.
 
 ---
 
+## 7. Evidence & attestation-readiness (G5 / ADR-019)
+
+**T-EVID-1.** For one tenant request, assemble the evidence bundle and point each
+artifact at the control it satisfies (see [`control-mapping.md`](control-mapping.md)):
+
+1. Pick one `request_id` (`litellm_call_id`) from a tenant's traffic.
+2. Pull the joined records:
+   - NeMo `decisions.log` line (`request_id`, `blocked`, redacted findings),
+   - LiteLLM `LiteLLM_SpendLogs` row (`request_id`, `model`→boundary, `team`,
+     `end_user`, `spend`, `status`),
+   - compliance-MCP structlog line if a tool ran (`caller_virtual_key_hash`,
+     `tool_name`),
+   - the upstream Okta System Log + Cloudflare Access entries (by email +
+     timestamp).
+3. For each, name the NIST 800-53 / CMMC L2 control it evidences (per the mapping).
+
+Pass criteria: one `request_id` ties the three gateway logs together, segregable
+by `team`; for a gov tenant every `model`→boundary row is on a gov boundary (none
+commercial); and each field maps to a control — the per-tenant evidence shape a
+3PAO would write up.
+
+---
+
 ## Run order
 
 ```
@@ -180,6 +203,7 @@ dimensions, and the residency difference is evident in the decision logs.
 3. Walk the guardrails matrix (T-GR-1..3)
 4. Walk the MCP matrix (T-MCP-1..4)
 5. Capture the audit trail (T-AUDIT-1)
-6. Tenancy: provision two orgs + verify isolation (T-TEN-1)   [needs master key]
-7. File everything under evidence/<TEST-ID>/
+6. Tenancy: provision two orgs + verify isolation (T-TEN-1, T-GOV-1)  [master key]
+7. Evidence: assemble a per-tenant bundle joined by request_id (T-EVID-1)
+8. File everything under evidence/<TEST-ID>/
 ```

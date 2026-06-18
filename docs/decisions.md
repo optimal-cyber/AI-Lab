@@ -960,3 +960,56 @@ tenant — the difference visible in the decision logs (the G4 done-when).
   code.
 - **Acceptance (G4 done-when):** a gov tenant gets stricter enforcement than a dev
   tenant, shown in the logs (test-plan T-GOV-1; live gateway + master key).
+
+---
+
+## ADR-019 — Evidence & attestation-readiness (control mapping)
+
+**Date:** 2026-06-18
+**Status:** Accepted
+**Implements:** [`docs/roadmap.md`](roadmap.md) Phase G5 (final phase of the arc).
+
+### Context
+
+G1–G4 built the controls (posture tiers, multi-cloud gov boundaries, approved-org
+tenancy, tenant-scoped governance) on top of the lab's existing access / guardrail
+/ egress / audit layers. The last phase makes that defensible: the artifact a 3PAO
+actually reads — which control each component satisfies, the evidence that proves
+it, and how a tenant's evidence is assembled.
+
+### Decision
+
+1. **Canonical artifact:** [`docs/control-mapping.md`](control-mapping.md) — maps
+   each gateway component to NIST 800-53 Rev 5 controls and CMMC L2 (800-171)
+   practices, naming the **evidence artifact + field** for each and the join key
+   that ties them together.
+
+2. **Three-layer inheritance model.** Every control is attributed to one of:
+   **inherited** from the gov boundary (the FedRAMP-authorized cloud provides the
+   underlying infra / datacenter / crypto baseline), **implemented** by the gateway
+   (access, guardrails, egress, audit, tenancy), or **tenant responsibility** (the
+   org's own data handling, user vetting). This is the customer-responsibility /
+   control-inheritance matrix shape an SSP uses.
+
+3. **Evidence is the structured log, joined by `request_id`.** Per-tenant evidence
+   is assembled from NeMo `decisions.log` + LiteLLM `LiteLLM_SpendLogs` +
+   compliance-MCP structlog, joined by `request_id` / `litellm_call_id` and
+   segregable by team — the AU-family story proven in
+   [`docs/sso-role-mapping.md`](sso-role-mapping.md), now mapped to controls.
+
+4. **Honesty boundary (load-bearing).** The artifact *evidences how the controls
+   would map and where the evidence lives* — it is **not** an SSP, not an
+   attestation, not an authorization. The lab holds no client data and is no
+   assessment boundary. A real engagement extends the mapping with its own
+   boundary, scoping, and 3PAO evidence.
+
+### Consequences
+
+- The gov-ready arc (G1–G5) is documented end-to-end: controls built (G1–G4),
+  controls evidenced + mapped (G5).
+- `control-mapping.md` is reproducible from the repo — the structured-JSON evidence
+  shapes are real and the control IDs are real; only the authorization is out of
+  scope.
+- **Acceptance (G5 done-when):** for one request, assemble the per-tenant evidence
+  bundle across the three logs joined by `request_id`, and point each artifact at
+  the control it satisfies (test-plan T-EVID-1).
