@@ -1,7 +1,8 @@
-# Zero Trust AI Lab
+# AI Gateway
 
-A reference design for SBIR/CMMC-bound teams who need defensible AI tooling
-without enterprise Zero Trust vendor pricing. Cloudflare Zero Trust + AWS + Okta
+A **Zero Trust reference design** for SBIR/CMMC-bound teams who need defensible AI
+tooling without enterprise vendor pricing — one authenticated API gateway to every
+frontier model and your government resources. Cloudflare Zero Trust + AWS + Okta
 Developer + open-source components, assembled as a credible counterpart to a
 Zscaler-based reference architecture.
 

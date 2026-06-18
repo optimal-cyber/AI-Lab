@@ -1,4 +1,4 @@
-# Test plan — Zero Trust AI Lab
+# Test plan — AI Gateway
 
 The explicit test cases and the **evidence to capture** for each (screenshots,
 log lines, command output). The audit-trail test (T-AUDIT-1) is the strongest

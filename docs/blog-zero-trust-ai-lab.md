@@ -1,4 +1,4 @@
-# Zero Trust AI Lab — A Reference Design for SBIR & CMMC Teams
+# AI Gateway — A Zero Trust Reference Design for SBIR & CMMC Teams
 
 *A defensible Zero Trust AI architecture on AWS using Cloudflare, Okta, and open-source components. Under ~$95/month, full Terraform, structured audit evidence at every control point.*
 
