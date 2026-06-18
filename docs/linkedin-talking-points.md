@@ -82,7 +82,7 @@ post if you want one image. Or use the Mermaid in `README.md`.
 
 > *Reference design built by Optimal, LLC (CAGE 14HQ0) on personal time and
 > personal infrastructure. No client data; not a CMMC assessment boundary; not a
-> claim of compliance. Source + ADRs: github.com/optimal-cyber/AI-Lab*
+> claim of compliance. Source + ADRs: github.com/optimal-cyber/AI-Gateway*
 
 ## If you reference Will Grana
 
