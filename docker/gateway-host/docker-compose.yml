@@ -74,6 +74,12 @@ services:
       NEMO_GUARDRAIL_URL: "http://nemo-guardrails:8000"
       # so `guardrail: nemo_guardrail.NemoDaaSGuardrail` is importable
       PYTHONPATH: "/app"
+      # Hide the off-brand LiteLLM Swagger/ReDoc API pages at `/` and `/redoc`
+      # (the `/v1` API + the SSO-gated `/ui` control plane are unaffected). For
+      # admins to land on the control plane, add a Cloudflare Single Redirect
+      # `gateway.optimallabs.io/` -> `/ui` (see docs/demo-live.md).
+      NO_DOCS: "True"
+      NO_REDOC: "True"
       # Okta admin OIDC (direct — ADR-007)
       PROXY_BASE_URL: "${PROXY_BASE_URL}"
       GENERIC_CLIENT_ID: "${GENERIC_CLIENT_ID}"

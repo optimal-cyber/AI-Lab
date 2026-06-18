@@ -60,6 +60,14 @@ cd /opt/ai-lab/repo && ./scripts/run-smoke-tests.sh   # containers + egress all 
 
 ## Part B — demo the control plane (the screen that *is* the gateway)
 
+> **Branding note.** The off-brand LiteLLM Swagger/ReDoc pages at `/` and `/redoc`
+> are disabled (`NO_DOCS`/`NO_REDOC` on the litellm container), and the Admin UI
+> carries the Optimal Horizon logo (`ui_theme_config`). To make the bare root land
+> on the control plane, add a **Cloudflare Single Redirect** (Rules → Redirect
+> Rules) on `gateway.optimallabs.io`: when URI path equals `/`, 302 to `/ui`.
+> (The OSS UI still shows the "LiteLLM" wordmark in places — removing it entirely
+> is a LiteLLM Enterprise feature.)
+
 1. Browser → **`https://gateway.optimallabs.io/ui`**.
 2. Cloudflare Access → Okta + MFA (must be `lab-admins`, US geo, WARP).
 3. Walk the LiteLLM Admin:
