@@ -572,14 +572,15 @@ Cloudflare Pages + Cloudflare Zero Trust (single seat) + Okta Developer are all
 
 The strategic arc — turning this into a **government-ready, multi-cloud,
 multi-tenant access layer** for approved organizations — is laid out in
-[`docs/roadmap.md`](docs/roadmap.md) (Phases G1–G5). **G1–G4 have landed
+[`docs/roadmap.md`](docs/roadmap.md) (Phases G1–G5). **The full arc has landed
 (config-ready):** posture tiers ([ADR-014](docs/decisions.md)), a multi-cloud gov
 broker ([ADR-015](docs/decisions.md)), approved-org tenancy
-([ADR-016](docs/decisions.md)/[017](docs/decisions.md)), and tenant-scoped
-governance ([ADR-018](docs/decisions.md)) — onboard a tenant with
-[`docs/org-onboarding.md`](docs/org-onboarding.md) + `scripts/provision-org.sh`.
-**G5** (evidence / attestation-readiness) is the remaining phase; the near-term
-items below feed into it.
+([ADR-016](docs/decisions.md)/[017](docs/decisions.md)), tenant-scoped governance
+([ADR-018](docs/decisions.md)), and evidence/control-mapping
+([ADR-019](docs/decisions.md)). Onboard a tenant with
+[`docs/org-onboarding.md`](docs/org-onboarding.md) + `scripts/provision-org.sh`;
+see the control map in [`docs/control-mapping.md`](docs/control-mapping.md). The
+near-term items below extend it.
 
 - **More government resources behind the gateway.** Add `.gov` sources as
   additional read-only `compliance-mcp` tools so the same authenticated key
@@ -620,11 +621,14 @@ items below feed into it.
 | 4.5 | Landing page at `optimallabs.io` | ✅ static, ~10kb |
 | 5 | Test plan + smoke-test script | ✅ documented |
 | 6 | Full README + LinkedIn talking points | ✅ this file |
-| G1–G4 | Gov-ready arc: posture tiers, multi-cloud broker, approved-org tenancy, tenant-scoped governance | ✅ ADRs 014–018; config-ready (gov boundaries not live; state not migrated) |
+| G1–G5 | Gov-ready arc: posture tiers, multi-cloud broker, approved-org tenancy, tenant governance, evidence/control-mapping | ✅ ADRs 014–019; config-ready (gov boundaries not live; state not migrated) |
 
 ## Start here
 
-- **The "why":** [`docs/decisions.md`](docs/decisions.md) — ADR-001..013.
+- **The "why":** [`docs/decisions.md`](docs/decisions.md) — ADR-001..019.
+- **The gov-ready arc:** [`docs/roadmap.md`](docs/roadmap.md) (G1–G5) +
+  [`docs/control-mapping.md`](docs/control-mapping.md) (NIST 800-53 / CMMC L2
+  mapping + per-tenant evidence).
 - **The threat model:** [`docs/threat-model.md`](docs/threat-model.md) — STRIDE
   per component + AI-specific.
 - **Run the smoke tests:** [`docs/test-plan.md`](docs/test-plan.md).
