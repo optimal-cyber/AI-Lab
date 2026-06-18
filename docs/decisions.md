@@ -1,6 +1,6 @@
-# Architecture Decision Records — Zero Trust AI Lab
+# Architecture Decision Records — AI Gateway
 
-This is the ADR log for the Optimal Labs Zero Trust AI lab. Each record captures a
+This is the ADR log for Optimal Labs' AI Gateway (a Zero Trust reference design). Each record captures a
 decision, the context that forced it, the alternatives considered, and the
 consequences a fellow assessor would want to interrogate. Style-only choices are
 decided silently in code; anything affecting **cost, blast radius, or compliance

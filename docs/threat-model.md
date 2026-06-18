@@ -1,4 +1,4 @@
-# Threat Model — Zero Trust AI Lab
+# Threat Model — AI Gateway (Zero Trust reference design)
 
 **Method:** STRIDE per component, plus an AI-specific section (prompt injection, RAG
 poisoning, model exfiltration, tool misuse, secret leakage in prompts).
