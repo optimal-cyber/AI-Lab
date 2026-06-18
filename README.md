@@ -559,6 +559,11 @@ Cloudflare Pages + Cloudflare Zero Trust (single seat) + Okta Developer are all
 
 ## What to build next
 
+The strategic arc — turning this into a **government-ready, multi-cloud,
+multi-tenant access layer** for approved organizations — is laid out in
+[`docs/roadmap.md`](docs/roadmap.md) (Phases G1–G5). The near-term items below
+feed into it.
+
 - **More government resources behind the gateway.** Add `.gov` sources as
   additional read-only `compliance-mcp` tools so the same authenticated key
   reaches them through `/v1`. The **Federal Register** (`federal_register_search`,
