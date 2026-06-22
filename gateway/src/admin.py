@@ -128,4 +128,22 @@ def build_router() -> APIRouter:
         _require_admin(request)
         return _store(request).spend_summary()
 
+    # -- models (proxied from the engine so the branded UI shows them too) --
+    @r.get("/models")
+    async def models(request: Request):
+        _require_admin(request)
+        cfg = request.app.state.settings
+        up = request.app.state.upstream
+        bearer = cfg.upstream_key or cfg.master_key
+        try:
+            resp = await up.get("/v1/models", {"authorization": f"Bearer {bearer}"})
+            data = resp.json()
+        except Exception:  # noqa: BLE001
+            return {"data": [], "error": "upstream models unavailable"}
+        rows = data.get("data", []) if isinstance(data, dict) else []
+        # Tag gov-tier models by id prefix so the UI can surface the gov story.
+        return {"data": [{"id": m.get("id"),
+                          "tier": "gov" if str(m.get("id", "")).startswith("gov/") else "dev"}
+                         for m in rows if isinstance(m, dict)]}
+
     return r
