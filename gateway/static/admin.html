@@ -62,6 +62,11 @@
     <div id="msg"></div>
   </div>
 
+  <div class="card">
+    <h2>Models (via the gateway)</h2>
+    <table id="models"><thead><tr><th>Model</th><th>Tier</th></tr></thead><tbody></tbody></table>
+  </div>
+
   <div class="row">
     <div class="card">
       <h2>New team (org)</h2>
@@ -118,6 +123,10 @@ async function refresh() {
   try {
     const teams = (await api('GET', '/teams')).data;
     const keys = (await api('GET', '/keys')).data;
+    const models = (await api('GET', '/models')).data || [];
+    $('models').tBodies[0].innerHTML = models.map(m =>
+      `<tr><td><code>${esc(m.id)}</code></td>
+       <td><span class="pill ${m.tier}">${m.tier}</span></td></tr>`).join('') || empty(2);
     const byId = Object.fromEntries(teams.map(t => [t.id, t.alias]));
     $('teams').tBodies[0].innerHTML = teams.map(t =>
       `<tr><td>${esc(t.alias)}</td><td><span class="pill ${t.tier}">${t.tier}</span></td>
@@ -158,6 +167,19 @@ async function revoke(id) {
   try { await api('DELETE', '/keys/' + id); msg('Key revoked.', true); refresh(); }
   catch (e) { msg('Error: ' + e.message, false); }
 }
+
+// Brand the page from the façade's own name (GATEWAY_NAME) — this is our UI.
+(async () => {
+  try {
+    const info = await (await fetch('/')).json();
+    if (info && info.service) {
+      const label = info.service + ' — Control Plane';
+      document.title = label;
+      const h = document.querySelector('header h1');
+      if (h) h.textContent = label;
+    }
+  } catch (e) { /* keep the static default */ }
+})();
 </script>
 </body>
 </html>

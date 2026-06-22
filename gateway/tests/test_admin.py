@@ -45,3 +45,12 @@ def test_create_key_unknown_team_rejected(make_client):
     c, _ = make_client(master_key=M)
     r = c.post("/admin/keys", headers=AH, json={"team_id": "team_nope"})
     assert r.status_code == 400
+
+
+def test_admin_models_proxied_and_tiered(make_client):
+    c, _ = make_client(master_key=M)
+    r = c.get("/admin/models", headers=AH)
+    assert r.status_code == 200
+    models = r.json()["data"]
+    # the mock upstream exposes claude-opus-4-8; the façade tags its tier
+    assert any(m["id"] == "claude-opus-4-8" and m["tier"] == "dev" for m in models)

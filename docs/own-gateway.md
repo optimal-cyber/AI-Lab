@@ -94,8 +94,13 @@ Enterprise wall bit us. Shipped in `gateway/`, gated by `GATEWAY_CONTROL_PLANE`
   a spend summary. `scripts/provision-org.sh` targets it by default
   (`--backend facade`), including the ADR-018 gov approval gate (a gov team
   requires `approved_by`); `--backend litellm` keeps the legacy path.
-- **Branded admin UI** (`static/admin.html`) — minimal, dependency-free, served
-  at `/admin/ui`; carries the Optimal Horizon mark.
+- **Branded admin UI** (`static/admin.html`) — dependency-free, served at
+  `/admin/ui`; shows Models / Teams / Keys / Spend and brands itself from
+  `GATEWAY_NAME` + the Optimal Horizon mark. **This is the answer to the
+  white-label motivation:** full name-removal/theming of LiteLLM's own UI is an
+  Enterprise (paid) feature, but here the control plane is *our* UI, so it is
+  100% Optimal-branded with no LiteLLM wordmark and no license. By fronting with
+  the façade, LiteLLM's UI is internal-only (SSM/optional second hostname).
 
 **Deferred from Phase 2 (honest gaps):** the **output guardrail** on *streamed*
 responses is still not enforced (tokens are already in flight); budget *alerting*
