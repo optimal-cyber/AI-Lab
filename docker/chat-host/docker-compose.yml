@@ -1,102 +1,57 @@
 # =============================================================================
-# chat-host stack (EC2 #1): Open WebUI + cloudflared
+# chat-host stack (EC2 #1): Optimal chat (our own UI) + cloudflared
 # =============================================================================
 # .env is provided by secrets-bootstrap.sh (tmpfs, role=chat) and symlinked here.
 # Run via the ai-lab-stack@chat systemd unit (after the secrets unit).
+#
+# This runs OUR OWN branded chat (../../chat-ui), not Open WebUI — the chat
+# surface must be unmistakably the product, not an off-the-shelf wrapper. The app
+# serves the Optimal UI and proxies /v1 to the gateway façade server-side, so the
+# upstream key never reaches the browser.
 # =============================================================================
 
 services:
-  open-webui:
-    image: ghcr.io/open-webui/open-webui:main
+  chat:
+    build:
+      context: ../../chat-ui
     restart: unless-stopped
     # ---------------------------------------------------------------------
     # LOAD-BEARING SECURITY BOUNDARY (ADR-007 / threat T-CHAT-S):
-    # Bind to 127.0.0.1 ONLY. Trusted-header SSO means anything that can reach
-    # this port can forge Cf-Access-Authenticated-User-Email and become any
-    # user. Only cloudflared (same host, same docker network) must reach it.
-    # DO NOT change to 0.0.0.0, DO NOT add a host-published port, DO NOT expose
-    # it to the app subnet. This single bind is the entire boundary for this app.
+    # Bind to 127.0.0.1 ONLY. Trusted-header SSO (Cloudflare Access + Okta) means
+    # anything that can reach this port can act as any user. Only cloudflared (same
+    # host, same docker network) must reach it. DO NOT change to 0.0.0.0, DO NOT
+    # publish to the app subnet. This single bind is the entire boundary.
     # ---------------------------------------------------------------------
     ports:
       - "127.0.0.1:8080:8080"
+    # The Cloudflare tunnel ingress points at http://open-webui:8080 (set up for
+    # the previous client). Keep that docker DNS name reachable via an alias so we
+    # never have to touch the remote-managed tunnel config.
+    networks:
+      default:
+        aliases:
+          - open-webui
     environment:
-      WEBUI_AUTH: "true"
-      # Brand the chat surface as the product, not "Open WebUI" (the gateway must
-      # not look like an off-the-shelf wrapper). Overridable via the host env.
-      WEBUI_NAME: "${WEBUI_NAME:-Optimal}"
-      # Mission-relevant starter prompts instead of the consumer defaults
-      # ("kids' art", "help me study"). Seeded into config on a fresh install.
-      DEFAULT_PROMPT_SUGGESTIONS: '[{"title":["Summarize a solicitation","extract key requirements"],"content":"Summarize this solicitation and list the key technical and compliance requirements as concise bullet points."},{"title":["Draft a control narrative","NIST 800-171 / CMMC L2"],"content":"Draft a concise implementation narrative for NIST 800-171 control 3.1.1 (access control) for a small defense contractor."},{"title":["Screen text for sensitive data","PII / CUI before it leaves the boundary"],"content":"Review the following text and flag any PII, CUI, or otherwise sensitive information that should not be shared externally."},{"title":["Explain a regulation","in plain language"],"content":"Explain the key obligations of CMMC Level 2 for a subcontractor in plain language."}]'
-      WEBUI_AUTH_TRUSTED_EMAIL_HEADER: "Cf-Access-Authenticated-User-Email"
-      WEBUI_AUTH_TRUSTED_NAME_HEADER: "Cf-Access-Authenticated-User-Name"
-      ENABLE_SIGNUP: "false"
-      DEFAULT_USER_ROLE: "user"
-      # Forward the resolved user identity downstream so LiteLLM can attribute
-      # the request to the email (audit-trail story, sso-role-mapping.md).
-      ENABLE_FORWARD_USER_INFO_HEADERS: "true"
-      WEBUI_SECRET_KEY: "${WEBUI_SECRET_KEY}"
-      # Talk to the gateway FAÇADE on EC2 #2 (:4001), the OpenAI-compatible front
-      # door, using the façade bootstrap virtual key (NOT a provider key — provider
-      # keys never leave the gateway host). The façade validates this key against
-      # its control-plane store, then forwards to LiteLLM. (Pre-façade this pointed
-      # at litellm:4000 with LITELLM_VIRTUAL_KEY_WEBUI; see docs/own-gateway.md.)
-      OPENAI_API_BASE_URL: "http://${LITELLM_HOST_IP}:4001/v1"
-      OPENAI_API_KEY: "${GATEWAY_BOOTSTRAP_KEY}"
-      # Open WebUI's only outbound is to LiteLLM intra-VPC. Empty proxy env is
-      # honest. The trap to dodge: Open WebUI's HTTP client is aiohttp, and
-      # aiohttp's `trust_env=True` reads HTTP_PROXY but does NOT honor
-      # NO_PROXY at all — neither CIDR ranges nor exact hostnames. So once
-      # HTTP_PROXY is set, EVERY request is proxied (years-old upstream
-      # limitation). With HTTP_PROXY pointed at Squid, /v1/models gets a 403
-      # HTML page because 10.50.10.118 isn't in the Squid dstdomain allowlist,
-      # and the model picker stays empty.
+      # Talk to the gateway FAÇADE (:4001) using the façade bootstrap virtual key.
+      # The key stays SERVER-SIDE in this app — it never reaches the browser. The
+      # app proxies /v1 to the façade, which validates the key + forwards to LiteLLM.
+      FACADE_URL: "http://${LITELLM_HOST_IP}:4001"
+      GATEWAY_BOOTSTRAP_KEY: "${GATEWAY_BOOTSTRAP_KEY}"
+      CHAT_NAME: "${WEBUI_NAME:-Optimal}"
+      # The app's only outbound is to the façade intra-VPC; keep it off Squid.
       HTTP_PROXY: ""
       HTTPS_PROXY: ""
       http_proxy: ""
       https_proxy: ""
       NO_PROXY: ""
       no_proxy: ""
-      # Companion to the empty proxy env: prevent boot-time outbound to
-      # huggingface.co (snapshot_download for the all-MiniLM embeddings model
-      # used by RAG). With no proxy and no direct egress allowed by the app
-      # SG, that connect would hang for the full TCP timeout — long enough
-      # for the healthcheck to mark the container unhealthy before Uvicorn
-      # gets a chance to bind 8080. Offline mode tells huggingface_hub /
-      # transformers to never touch the network and use cache only; with
-      # nothing cached, RAG features (embeddings, semantic search) simply
-      # stay disabled — fine for this lab, which uses LiteLLM-gateway chat
-      # only. (See ADR-009 footnote on outbound architecture.)
-      HF_HUB_OFFLINE: "1"
-      TRANSFORMERS_OFFLINE: "1"
-    volumes:
-      - open-webui-data:/app/backend/data
-      # --- Optimal branding: override Open WebUI's logo / favicon / splash so the
-      # chat surface reads as the product, not an off-the-shelf "OI" wrapper. PNGs
-      # are rasterized from landing/optimal-horizon.svg into ./branding (committed).
-      - ./branding/favicon.png:/app/build/favicon.png:ro
-      - ./branding/favicon.png:/app/build/static/favicon.png:ro
-      - ./branding/favicon-96x96.png:/app/build/static/favicon-96x96.png:ro
-      - ./branding/favicon-dark.png:/app/build/static/favicon-dark.png:ro
-      - ./branding/favicon.ico:/app/build/static/favicon.ico:ro
-      - ./branding/favicon.svg:/app/build/static/favicon.svg:ro
-      - ./branding/logo.png:/app/build/static/logo.png:ro
-      - ./branding/splash.png:/app/build/static/splash.png:ro
-      - ./branding/splash-dark.png:/app/build/static/splash-dark.png:ro
-      - ./branding/apple-touch-icon.png:/app/build/static/apple-touch-icon.png:ro
-      - ./branding/web-app-manifest-192x192.png:/app/build/static/web-app-manifest-192x192.png:ro
-      - ./branding/web-app-manifest-512x512.png:/app/build/static/web-app-manifest-512x512.png:ro
-      # backend static copies (a few surfaces read from here)
-      - ./branding/favicon.png:/app/backend/open_webui/static/favicon.png:ro
-      - ./branding/logo.png:/app/backend/open_webui/static/logo.png:ro
-      - ./branding/splash.png:/app/backend/open_webui/static/splash.png:ro
-      - ./branding/splash-dark.png:/app/backend/open_webui/static/splash-dark.png:ro
     healthcheck:
       test: ["CMD", "python", "-c",
              "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8080/health').status==200 else 1)"]
       interval: 30s
       timeout: 5s
       retries: 5
-      start_period: 60s
+      start_period: 30s
 
   cloudflared:
     image: cloudflare/cloudflared:latest
@@ -107,9 +62,9 @@ services:
       # IMPORTANT: EXPLICITLY unset the proxy env, otherwise the docker daemon's
       # /root/.docker/config.json `proxies` block auto-injects HTTP(S)_PROXY into
       # every container. cloudflared's Go HTTP transport would then route origin
-      # requests (http://open-webui:8080) through Squid; Squid sees the Host
-      # header chat.optimallabs.io which is NOT in its allowlist and returns
-      # 403, so users hit a Squid "Access Denied" page after Okta auth.
+      # requests (http://open-webui:8080) through Squid; Squid sees the Host header
+      # chat.optimallabs.io which is NOT in its allowlist and returns 403, so users
+      # hit a Squid "Access Denied" page after Okta auth.
       HTTP_PROXY: ""
       HTTPS_PROXY: ""
       http_proxy: ""
@@ -117,8 +72,5 @@ services:
       NO_PROXY: ""
       no_proxy: ""
     depends_on:
-      open-webui:
+      chat:
         condition: service_healthy
-
-volumes:
-  open-webui-data:
