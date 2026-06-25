@@ -113,7 +113,14 @@ model_list:
   # guessed provider string. Until confirmed, Amazon Bedrock in GovCloud is the
   # working gov Claude path (partner-operated; feature subset — no Anthropic
   # server-side tools / Managed Agents):
-  # --- gov-tier deployments: DISABLED until cloud creds are provisioned -------
+  # --- gov-tier: AWS GovCloud entry REGISTERED for posture; Vertex/Azure disabled
+  # The Bedrock GovCloud entry below is REGISTERED so gov/claude-opus-4-8 appears in
+  # /v1/models tagged access_tier=gov (FedRAMP High, IL4/IL5) — the "government-ready
+  # models" story is real in the list. It uses NO os.environ ref, so it loads safely;
+  # a live CALL needs GovCloud creds + the Bedrock GovCloud endpoint on the Squid
+  # allowlist (until then it routes but the call fails — expected).
+  #
+  # The Vertex / Azure entries stay COMMENTED:
   # IMPORTANT: these entries referenced env vars that don't exist in this deploy
   # (VERTEX_GOV_PROJECT, AZURE_GOV_OPENAI_ENDPOINT/_API_KEY). An unresolvable
   # `os.environ/…` ref makes LiteLLM drop the ENTIRE model_list at startup
@@ -123,11 +130,11 @@ model_list:
   # block, seed its creds (Secrets Manager + secrets-bootstrap), add the env vars,
   # and add the provider endpoint to the Squid allowlist. See docs/operate.md §6.
   #
-  #  - model_name: gov/claude-opus-4-8        # AWS GovCloud (Bedrock)
-  #    litellm_params:
-  #      model: bedrock/anthropic.claude-opus-4-8
-  #      aws_region_name: us-gov-west-1
-  #    model_info: { access_tier: gov, boundary: "AWS GovCloud (Bedrock)", fedramp: high, il: "IL4/IL5-eligible" }
+  - model_name: gov/claude-opus-4-8        # AWS GovCloud (Bedrock) — posture-registered (uncallable until creds)
+    litellm_params:
+      model: bedrock/anthropic.claude-opus-4-8
+      aws_region_name: us-gov-west-1
+    model_info: { access_tier: gov, boundary: "AWS GovCloud (Bedrock)", fedramp: high, il: "IL4/IL5-eligible" }
   #
   #  - model_name: gov/claude-opus-4-8        # GCP Vertex (Assured Workloads) — cross-cloud failover
   #    litellm_params:

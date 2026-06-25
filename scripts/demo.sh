@@ -148,9 +148,14 @@ forward "claude-sonnet-4-6" "Anthropic · commercial"
 forward "gpt-4o"           "OpenAI · commercial"
 proves "One credential reaches every frontier model across providers — no SDK rewrite, just the base URL."
 echo
-note "Government-ready boundaries — AWS GovCloud (Bedrock), Azure Government, GCP Assured"
-note "Workloads — are configured and posture-tagged in the same model list, ready to light up"
-note "the moment your accreditation boundary's credentials are provisioned (no live gov call here)."
+curl -sS -m 10 -o "$BODY" "${GW_URL}/v1/models" -H "Authorization: Bearer ${BOOTSTRAP:-$MASTER}" 2>/dev/null
+GOVS=$(jget '", ".join(m["id"] for m in d.get("data",[]) if str(m.get("id","")).startswith("gov/"))' < "$BODY")
+if [[ -n "$GOVS" ]]; then
+  ok "Government-ready model registered: ${B}${GOVS}${R}  ${DIM}(AWS GovCloud · FedRAMP High · IL4/IL5)${R}"
+  note "Posture-tagged and routable now; the live call activates when GovCloud creds are provisioned."
+else
+  note "Government-ready boundaries (GovCloud / Azure Gov / Assured Workloads) are config-ready."
+fi
 pause
 
 # ============================================================================

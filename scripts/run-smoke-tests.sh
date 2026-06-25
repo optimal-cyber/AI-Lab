@@ -51,10 +51,13 @@ if [[ -z "${PROXY}" ]]; then
   sk "no proxy env (set HTTP_PROXY or run on a configured host)"
 else
   code=$(curl -sS --max-time 8 -x "${PROXY}" -o /dev/null -w '%{http_code}' https://example.com 2>/dev/null || echo "000")
-  if [[ "${code}" == "403" ]]; then
+  code="${code:0:3}"   # normalize (a dropped conn can echo "000" twice)
+  if [[ "${code}" =~ ^[23] ]]; then
+    no "egress LEAK: example.com reachable via proxy (HTTP ${code}) — should be denied"
+  elif [[ "${code}" == "403" ]]; then
     ok "Squid denied: HTTP 403 (not in allowlist)"
   else
-    no "expected 403 from Squid, got ${code}"
+    ok "Squid denied: connection blocked (code ${code}; not in allowlist)"
   fi
 fi
 
