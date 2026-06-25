@@ -123,9 +123,6 @@ variable "egress_allowlist_domains" {
     # --- LLM providers ---
     ".openai.com",    # api.openai.com
     ".anthropic.com", # api.anthropic.com
-    # --- government data (compliance MCP) ---
-    ".sam.gov",             # api.sam.gov (sam_gov_lookup)
-    ".federalregister.gov", # www.federalregister.gov/api/v1 (federal_register_search; keyless)
     # --- government-ready model boundaries (ADR-014/015; gov tier, config-ready) ---
     # Scoped to the exact gov endpoint/host-family (not a broad .amazonaws.com /
     # .googleapis.com / .azure.us) to preserve default-deny. Inert until each gov

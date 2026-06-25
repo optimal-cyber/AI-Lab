@@ -45,9 +45,6 @@ node_modules/
 dist/
 .wrangler/
 
-# ---- Local data stores (seeded from SQL, not committed) ----
-mcp-server/data/poams.db
-
 # ---- OS / editor ----
 .DS_Store
 *.swp

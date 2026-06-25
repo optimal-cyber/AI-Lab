@@ -1,9 +1,9 @@
 # =============================================================================
-# gateway-host stack (EC2 #2): LiteLLM + Postgres + NeMo Guardrails + MCP + cloudflared
+# gateway-host stack (EC2 #2): LiteLLM + Postgres + NeMo Guardrails + cloudflared
 # =============================================================================
 # .env is provided by secrets-bootstrap.sh (tmpfs, role=gateway) and symlinked here.
 # Build contexts assume the repo is present on the host (compose run from
-# <repo>/docker/gateway-host, so ../../mcp-server resolves). See docs/deploy.md.
+# <repo>/docker/gateway-host, so ../../gateway resolves). See docs/deploy.md.
 # =============================================================================
 
 services:
@@ -37,24 +37,6 @@ services:
       timeout: 5s
       retries: 3
       start_period: 40s
-
-  compliance-mcp:
-    build:
-      context: ../../mcp-server
-    restart: unless-stopped
-    environment:
-      SAM_GOV_API_KEY: "${SAM_GOV_API_KEY}"
-      MCP_TRANSPORT: "http"
-      # MCP egresses to api.sam.gov via the Squid allowlist proxy.
-      HTTP_PROXY: "${HTTP_PROXY:-}"
-      HTTPS_PROXY: "${HTTPS_PROXY:-}"
-      NO_PROXY: "${NO_PROXY:-}"
-    healthcheck:
-      test: ["CMD", "python", "-m", "src.server", "--health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 20s
 
   litellm:
     # PINNED BY DIGEST (supply-chain control — docs/litellm-supply-chain.md).
@@ -95,10 +77,10 @@ services:
       GENERIC_SCOPE: "${GENERIC_SCOPE}"
       GENERIC_USER_ROLE_JWT_FIELD: "${GENERIC_USER_ROLE_JWT_FIELD}"
       # Provider egress via the Squid allowlist proxy (ADR-009). NO_PROXY keeps
-      # intra-VPC service-to-service traffic (postgres, nemo, mcp) off the proxy.
+      # intra-VPC service-to-service traffic (postgres, nemo) off the proxy.
       HTTP_PROXY: "${HTTP_PROXY:-}"
       HTTPS_PROXY: "${HTTPS_PROXY:-}"
-      NO_PROXY: "${NO_PROXY:-},postgres,nemo-guardrails,compliance-mcp,localhost,127.0.0.1"
+      NO_PROXY: "${NO_PROXY:-},postgres,nemo-guardrails,localhost,127.0.0.1"
     volumes:
       - ./litellm-config.yaml:/app/config.yaml:ro
       - ./nemo_guardrail.py:/app/nemo_guardrail.py:ro
@@ -106,8 +88,6 @@ services:
       postgres:
         condition: service_healthy
       nemo-guardrails:
-        condition: service_healthy
-      compliance-mcp:
         condition: service_healthy
 
   # ---------------------------------------------------------------------------

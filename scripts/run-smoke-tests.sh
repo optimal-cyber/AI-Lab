@@ -105,7 +105,7 @@ if [[ -n "${ROLE}" ]] && command -v docker >/dev/null; then
       no "${ROLE}: no containers running"
     fi
     if [[ "${ROLE}" == "gateway" ]]; then
-      for svc in nemo-guardrails compliance-mcp; do
+      for svc in nemo-guardrails; do
         if docker compose exec -T "${svc}" python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)" >/dev/null 2>&1; then
           ok "${svc} /health 200"
         else
@@ -134,8 +134,8 @@ fi
 
 # --- gateway endpoint proof (gateway-host only) ------------------------------
 # The OpenAI-compatible endpoint IS the gateway. By default we test the FAÇADE
-# on :4001 (the front door). One virtual key reaches every frontier model AND the
-# government-resource (MCP) tools; an injection prompt is blocked pre-call.
+# on :4001 (the front door). One virtual key reaches every frontier model, and an
+# injection prompt is blocked pre-call by the guardrail rail.
 #
 # KEY: with the façade control plane ON, callers must present a FAÇADE key (the
 # bootstrap key or one minted via /admin/ui) — NOT the LiteLLM master key. The
@@ -216,20 +216,6 @@ else
     ok "[T-GW-3] injection blocked pre-call (HTTP ${code}, blocked_by_guardrail — no provider spend)"
   else
     no "[T-GW-3] injection NOT blocked (HTTP ${code}) — pre-call rail did not fire"
-  fi
-
-  # T-GW-4: a government resource reached THROUGH the gateway (MCP tool routing)
-  code=$(curl -sS --max-time 60 -o /tmp/_gw_gov -w '%{http_code}' \
-    -X POST "${GW_URL}/v1/chat/completions" \
-    -H "Authorization: Bearer ${GW_KEY}" -H 'Content-Type: application/json' \
-    -d '{"model":"gpt-4o","messages":[{"role":"user","content":"Look up Optimal, LLC by CAGE 14HQ0 using the compliance tools."}]}' \
-    2>/dev/null || echo 000)
-  if [[ "${code}" == "200" ]] && grep -qiE 'cage|sam|14HQ0|entity|optimal' /tmp/_gw_gov 2>/dev/null; then
-    ok "[T-GW-4] government resource reached via gateway (sam_gov_lookup routed through /v1)"
-  elif [[ "${code}" == "200" ]]; then
-    sk "[T-GW-4] endpoint answered (HTTP 200) but no gov-tool signal — check MCP wiring / SAM.gov key"
-  else
-    no "[T-GW-4] gov-resource lookup expected 200, got ${code}"
   fi
 
   # T-GW-5: a government-ready (gov-tier, ADR-014) model is registered at the

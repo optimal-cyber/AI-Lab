@@ -21,7 +21,7 @@ variable "instance_type_overrides" {
     matching the keys of local.hosts and each.key on the instance resource. The
     gateway-host is sized larger because NeMo Guardrails' LLMRails warms up
     langchain + tokenizer footprint at startup (~600-1000 MB resident on top of
-    LiteLLM + Postgres + compliance-mcp + cloudflared); t3.small (2 GB) OOM-kills
+    LiteLLM + Postgres + the façade + cloudflared); t3.small (2 GB) OOM-kills
     SSM agent during recreate cycles. chat-host runs Open WebUI + cloudflared
     only, which fits t3.small comfortably. See ADR-012.
     NOTE: the key MUST be the full host key ("gateway-host"), not the bare role

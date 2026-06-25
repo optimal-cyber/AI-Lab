@@ -1,8 +1,8 @@
 """Structured request audit log for the gateway façade.
 
 One JSON line per request, to stdout AND a rotated file — the same shape and
-philosophy as NeMo's decisions.log and the compliance-mcp audit rows, so the
-three join on `request_id` to reconstruct a full life-of-a-prompt for a 3PAO.
+philosophy as NeMo's decisions.log, so the two join on `request_id` to
+reconstruct a full life-of-a-prompt for a 3PAO.
 
 PRIVACY: we never log prompt or completion CONTENT here. Only metadata
 (identity fingerprint, model, token counts, latency, decision). The virtual key

@@ -67,9 +67,6 @@ case "${AI_LAB_ROLE}" in
   gateway)
     put OPENAI_API_KEY              "$(secret openai_api_key)"
     put ANTHROPIC_API_KEY           "$(secret anthropic_api_key)"
-    # Optional: unseeded -> SAM.gov lookups degrade (the MCP still runs). Tolerant
-    # so a missing SAM key never aborts the whole gateway stack.
-    put SAM_GOV_API_KEY             "$(secret_opt sam_gov_api_key)"
     put LITELLM_MASTER_KEY          "$(secret litellm_master_key)"
     put LITELLM_SALT_KEY            "$(secret litellm_salt_key)"
     PG_PW="$(secret postgres_password)"

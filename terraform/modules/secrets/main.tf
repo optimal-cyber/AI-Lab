@@ -18,7 +18,6 @@ locals {
     "anthropic_api_key",
     "cloudflare_tunnel_token_chat",
     "cloudflare_tunnel_token_gateway",
-    "sam_gov_api_key",
     "litellm_master_key",
     "litellm_salt_key",
     "webui_secret",

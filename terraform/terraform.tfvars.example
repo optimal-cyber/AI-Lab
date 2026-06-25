@@ -20,4 +20,4 @@ availability_zones = ["us-east-1a", "us-east-1b"]
 
 # Egress allowlist — extend if you add providers/registries. Regional AWS
 # service endpoints are appended automatically from `region`.
-# egress_allowlist_domains = [".openai.com", ".anthropic.com", ".sam.gov", ...]
+# egress_allowlist_domains = [".openai.com", ".anthropic.com", ...]
