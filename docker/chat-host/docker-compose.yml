@@ -21,6 +21,9 @@ services:
       - "127.0.0.1:8080:8080"
     environment:
       WEBUI_AUTH: "true"
+      # Brand the chat surface as the product, not "Open WebUI" (the gateway must
+      # not look like an off-the-shelf wrapper). Overridable via the host env.
+      WEBUI_NAME: "${WEBUI_NAME:-Optimal}"
       WEBUI_AUTH_TRUSTED_EMAIL_HEADER: "Cf-Access-Authenticated-User-Email"
       WEBUI_AUTH_TRUSTED_NAME_HEADER: "Cf-Access-Authenticated-User-Name"
       ENABLE_SIGNUP: "false"

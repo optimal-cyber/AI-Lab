@@ -111,8 +111,10 @@ services:
     environment:
       # Branding — set these to your product (name + logo URL) so the surface is
       # yours, not a LiteLLM wrapper. Overridable via the host env / Secrets Manager.
-      GATEWAY_NAME: "${GATEWAY_NAME:-AI Gateway}"
-      GATEWAY_LOGO_URL: "${GATEWAY_LOGO_URL:-https://optimallabs.io/optimal-horizon.svg}"
+      GATEWAY_NAME: "${GATEWAY_NAME:-Optimal}"
+      # Self-hosted by the façade (/static) so branding never depends on an external
+      # URL — the apex optimallabs.io logo host isn't always resolvable.
+      GATEWAY_LOGO_URL: "${GATEWAY_LOGO_URL:-/static/optimal-horizon.svg}"
       GATEWAY_UPSTREAM_URL: "http://litellm:4000"
       GATEWAY_GUARDRAIL_URL: "http://nemo-guardrails:8000"
       # Default OFF: litellm still runs the NeMo rails today, so enforcing here

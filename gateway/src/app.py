@@ -21,6 +21,7 @@ from typing import Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 
 _STATIC = os.path.join(os.path.dirname(__file__), "..", "static")
 
@@ -101,11 +102,26 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
     async def admin_ui():
         return FileResponse(os.path.join(_STATIC, "admin.html"))
 
+    # -- own static assets (logo, favicon) so branding never depends on an
+    # external URL (the apex optimallabs.io logo host isn't always resolvable) --
+    app.mount("/static", StaticFiles(directory=_STATIC), name="static")
+
+    @app.get("/favicon.ico", include_in_schema=False)
+    async def favicon():
+        return FileResponse(os.path.join(_STATIC, "optimal-horizon.svg"),
+                            media_type="image/svg+xml")
+
     # -- branding / health -------------------------------------------------
     @app.get("/")
     async def root(cfg: Settings = Depends(get_settings)):
         return {"service": cfg.name, "logo": cfg.logo_url, "api": "openai-compatible",
                 "endpoints": ["/v1/chat/completions", "/v1/models", "/health"]}
+
+    @app.get("/v1", include_in_schema=False)
+    async def v1_root(cfg: Settings = Depends(get_settings)):
+        # /v1 alone isn't an OpenAI route — return a branded pointer, not a bare 404.
+        return {"service": cfg.name, "api": "openai-compatible",
+                "endpoints": ["/v1/chat/completions", "/v1/models"]}
 
     @app.get("/health")
     async def health(cfg: Settings = Depends(get_settings)):
