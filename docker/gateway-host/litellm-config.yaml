@@ -8,22 +8,30 @@
 # =============================================================================
 
 # Models behind one endpoint + one virtual key, each tagged with a compliance
-# posture (model_info, ADR-014): tier=dev (commercial boundary) or tier=gov
-# (government-ready boundary). Per-key allow-lists decide who can reach which tier
-# (roadmap G3). Verify model strings / provider wiring against the LiteLLM version
+# posture (model_info, ADR-014): access_tier=dev (commercial boundary) or
+# access_tier=gov (government-ready boundary). Per-key allow-lists decide who can
+# reach which tier (roadmap G3).
+#   NOTE: the posture key is `access_tier`, NOT `tier`. LiteLLM's ModelInfo
+#   reserves `tier` as a typed enum (Literal['free','paid']); a `tier: dev` there
+#   raises a ModelInfo ValidationError that makes LiteLLM drop the ENTIRE
+#   model_list at startup (symptom: /v1/models empty, "no healthy deployments").
+#   `access_tier` is an arbitrary extra field LiteLLM ignores. The façade derives
+#   a model's dev/gov tier from the `gov/` id-prefix (gateway/src/admin.py), not
+#   from this label, so renaming it is safe.
+# Verify model strings / provider wiring against the LiteLLM version
 # you deploy — see the header note above. Anthropic IDs verified against the
 # claude-api reference (Fable 5 most capable; Opus 4.8 default; Sonnet 4.6
 # balanced; Haiku 4.5 fast).
 model_list:
   # ===========================================================================
-  # tier: dev — commercial boundaries (development / demos; never "gov-ready")
+  # access_tier: dev — commercial boundaries (development / demos; never "gov-ready")
   # ===========================================================================
   - model_name: gpt-4o
     litellm_params:
       model: openai/gpt-4o
       api_key: os.environ/OPENAI_API_KEY
     model_info:
-      tier: dev
+      access_tier: dev
       boundary: "commercial (OpenAI-direct)"
       cloud: openai
       region: us
@@ -37,7 +45,7 @@ model_list:
       model: anthropic/claude-fable-5
       api_key: os.environ/ANTHROPIC_API_KEY
     model_info:
-      tier: dev
+      access_tier: dev
       boundary: "commercial (Anthropic-direct)"
       cloud: anthropic
       region: us
@@ -51,7 +59,7 @@ model_list:
       model: anthropic/claude-opus-4-8
       api_key: os.environ/ANTHROPIC_API_KEY
     model_info:
-      tier: dev
+      access_tier: dev
       boundary: "commercial (Anthropic-direct)"
       cloud: anthropic
       region: us
@@ -65,7 +73,7 @@ model_list:
       model: anthropic/claude-sonnet-4-6
       api_key: os.environ/ANTHROPIC_API_KEY
     model_info:
-      tier: dev
+      access_tier: dev
       boundary: "commercial (Anthropic-direct)"
       cloud: anthropic
       region: us
@@ -79,7 +87,7 @@ model_list:
       model: anthropic/claude-haiku-4-5
       api_key: os.environ/ANTHROPIC_API_KEY
     model_info:
-      tier: dev
+      access_tier: dev
       boundary: "commercial (Anthropic-direct)"
       cloud: anthropic
       region: us
@@ -89,7 +97,7 @@ model_list:
       il: n/a
 
   # ===========================================================================
-  # tier: gov — government-ready boundaries (ADR-014)
+  # access_tier: gov — government-ready boundaries (ADR-014)
   # ===========================================================================
   # CONFIG-READY, NOT LIVE in this lab: the lab runs in a commercial AWS account
   # (us-east-1, ADR — see README) with no GovCloud / Claude-Platform-on-AWS
@@ -119,14 +127,14 @@ model_list:
   #    litellm_params:
   #      model: bedrock/anthropic.claude-opus-4-8
   #      aws_region_name: us-gov-west-1
-  #    model_info: { tier: gov, boundary: "AWS GovCloud (Bedrock)", fedramp: high, il: "IL4/IL5-eligible" }
+  #    model_info: { access_tier: gov, boundary: "AWS GovCloud (Bedrock)", fedramp: high, il: "IL4/IL5-eligible" }
   #
   #  - model_name: gov/claude-opus-4-8        # GCP Vertex (Assured Workloads) — cross-cloud failover
   #    litellm_params:
   #      model: vertex_ai/claude-opus-4-8
   #      vertex_project: os.environ/VERTEX_GOV_PROJECT     # set this env to enable
   #      vertex_location: us-central1
-  #    model_info: { tier: gov, boundary: "GCP Vertex AI (Assured Workloads)", fedramp: high, il: "IL4-eligible" }
+  #    model_info: { access_tier: gov, boundary: "GCP Vertex AI (Assured Workloads)", fedramp: high, il: "IL4-eligible" }
   #
   #  - model_name: gov/gpt-4o                  # Azure Government (Azure OpenAI)
   #    litellm_params:
@@ -134,7 +142,7 @@ model_list:
   #      api_base: os.environ/AZURE_GOV_OPENAI_ENDPOINT     # set this env to enable
   #      api_key: os.environ/AZURE_GOV_OPENAI_API_KEY       # set this env to enable
   #      api_version: "2024-10-21"
-  #    model_info: { tier: gov, boundary: "Azure Government (Azure OpenAI)", fedramp: high, il: "IL4/IL5-eligible" }
+  #    model_info: { access_tier: gov, boundary: "Azure Government (Azure OpenAI)", fedramp: high, il: "IL4/IL5-eligible" }
 
 # --- Guardrails: NeMo as a DaaS hook on input (pre) and output (post) --------
 # Both point at the same custom class (../nemo_guardrail.py, mounted + on
