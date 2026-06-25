@@ -17,6 +17,7 @@ import logging
 import logging.handlers
 import os
 import sys
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 
@@ -53,5 +54,8 @@ class Auditor:
 
     def emit(self, **fields: Any) -> None:
         # Drop None values for a compact row; callers pass only what they have.
-        row = {"event": "gateway_request", **{k: v for k, v in fields.items() if v is not None}}
+        # A UTC timestamp leads every row so the ledger reads as time-ordered evidence.
+        row = {"ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+               "event": "gateway_request",
+               **{k: v for k, v in fields.items() if v is not None}}
         self._log.info(json.dumps(row, separators=(",", ":")))

@@ -34,7 +34,7 @@
   .pill { font-size:11px; padding:1px 7px; border-radius:999px; border:1px solid var(--line); }
   .pill.gov { color:#fbbf24; border-color:#7c5e16; }
   .pill.dev { color:var(--accent); }
-  .ok { color:var(--good); } .err { color:var(--bad); }
+  .ok { color:var(--good); } .err { color:var(--bad); } .warn { color:#fbbf24; }
   #msg { min-height:18px; font-size:12px; }
   .keybar { display:flex; gap:8px; align-items:end; }
   .keybar > div { flex:1; }
@@ -66,6 +66,17 @@
   <div class="card">
     <h2>Models (via the gateway)</h2>
     <table id="models"><thead><tr><th>Model</th><th>Tier</th></tr></thead><tbody></tbody></table>
+  </div>
+
+  <div class="card">
+    <h2>Audit &amp; evidence — append-only ledger<span id="audit_sum" class="sub"></span></h2>
+    <div style="display:flex; gap:8px; margin-bottom:10px">
+      <button class="ghost" onclick="loadAudit()">Refresh</button>
+      <button class="ghost" onclick="exportAudit()">Export CSV</button>
+    </div>
+    <table id="audit"><thead><tr>
+      <th>Time (UTC)</th><th>Decision</th><th>Model</th><th>Identity (fingerprint)</th>
+      <th>Tokens</th><th>ms</th><th>Request ID</th></tr></thead><tbody></tbody></table>
   </div>
 
   <div class="row">
@@ -141,11 +152,50 @@ async function refresh() {
        <td>${k.active ? `<button class=ghost onclick="revoke('${k.id}')">revoke</button>` : ''}</td></tr>`
       ).join('') || empty(6);
     $('k_team').innerHTML = teams.map(t => `<option value="${t.id}">${esc(t.alias)}</option>`).join('');
+    loadAudit();
     msg('Connected — ' + teams.length + ' teams, ' + keys.length + ' keys.', true);
   } catch (e) { msg('Error: ' + e.message, false); }
 }
 const empty = n => `<tr><td colspan="${n}" style="color:var(--muted)">none yet</td></tr>`;
 const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+// -- Audit & evidence: the append-only ledger (the compliance-evidence surface) --
+let AUDIT = [];
+function _decision(d) {
+  const s = d.status, ph = d.phase || '';
+  if (s === 200) return ['allowed', 'ok'];
+  if (ph === 'authz') return ['denied', 'err'];     // control-plane denial
+  if (s === 400) return ['blocked', 'warn'];         // guardrail block
+  return ['upstream', 'warn'];                       // provider/upstream error
+}
+async function loadAudit() {
+  try {
+    AUDIT = (await api('GET', '/audit?limit=100')).data || [];
+    let ok = 0, deny = 0, block = 0;
+    $('audit').tBodies[0].innerHTML = AUDIT.map(d => {
+      const [label, cls] = _decision(d);
+      if (label === 'allowed') ok++; else if (label === 'denied') deny++;
+      else if (label === 'blocked') block++;
+      const tok = (d.prompt_tokens || 0) + (d.completion_tokens || 0);
+      return `<tr><td>${esc((d.ts || '').replace('T', ' ').replace('+00:00', ''))}</td>
+        <td><span class="${cls}">${label}</span></td>
+        <td><code>${esc(d.model || '—')}</code></td>
+        <td><code>${esc(d.key || '—')}</code></td>
+        <td>${tok || '—'}</td><td>${d.duration_ms ?? '—'}</td>
+        <td><code>${esc((d.request_id || '').slice(0, 12))}</code></td></tr>`;
+    }).join('') || empty(7);
+    $('audit_sum').textContent = AUDIT.length
+      ? ` — ${AUDIT.length} events · ${ok} allowed · ${block} blocked · ${deny} denied`
+      : ' — none yet';
+  } catch (e) { msg('Audit error: ' + e.message, false); }
+}
+function exportAudit() {
+  const cols = ['ts','status','phase','model','key','prompt_tokens','completion_tokens','duration_ms','cost','request_id'];
+  const out = [cols.join(',')].concat(AUDIT.map(d => cols.map(c => JSON.stringify(d[c] ?? '')).join(',')));
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([out.join('\n')], { type: 'text/csv' }));
+  a.download = 'optimal-audit-evidence.csv'; a.click();
+}
 
 async function createTeam() {
   try {

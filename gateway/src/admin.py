@@ -12,6 +12,7 @@ allow-lists, and the ADR-018 gov approval gate (a gov team requires approved_by)
 
 from __future__ import annotations
 
+import json
 import secrets
 from typing import List, Optional
 
@@ -127,6 +128,31 @@ def build_router() -> APIRouter:
     async def spend(request: Request):
         _require_admin(request)
         return _store(request).spend_summary()
+
+    # -- audit & evidence: the append-only request ledger (the compliance story).
+    # Reads the JSON-lines audit log the façade writes for every request and returns
+    # the most recent rows, newest first. Identity is already a non-reversible
+    # fingerprint and no prompt/response content is logged (see audit.py).
+    @r.get("/audit")
+    async def audit(request: Request, limit: int = 100):
+        _require_admin(request)
+        path = request.app.state.settings.audit_log
+        limit = max(1, min(limit, 1000))
+        rows: List[dict] = []
+        try:
+            with open(path, "r", encoding="utf-8", errors="replace") as f:
+                for ln in f.readlines()[-limit:]:
+                    ln = ln.strip()
+                    if not ln:
+                        continue
+                    try:
+                        rows.append(json.loads(ln))
+                    except ValueError:
+                        pass
+        except FileNotFoundError:
+            pass
+        rows.reverse()  # newest first
+        return {"data": rows}
 
     # -- models (proxied from the engine so the branded UI shows them too) --
     @r.get("/models")
