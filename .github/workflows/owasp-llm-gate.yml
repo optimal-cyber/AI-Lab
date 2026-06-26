@@ -1,0 +1,57 @@
+name: OWASP LLM Top 10 gate
+
+# Red-team & assurance, automatically in the pull request: attacker-style probes
+# mapped to the OWASP LLM Top 10 must be blocked by the guardrail before any change
+# merges, and the guardrail + control-plane test suites must pass. Make
+# "owasp-llm-gate" a required status check in branch protection to gate promotion.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  owasp-llm-gate:
+    name: OWASP LLM Top 10 red-team gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Red-team the guardrail against the OWASP LLM Top 10
+        # Pure-stdlib: fires the probe corpus at the detectors; exits non-zero on
+        # any attack that leaks or any benign prompt that false-positives.
+        run: python scripts/owasp_probe.py
+
+  guardrail-detector-tests:
+    name: Guardrail detector unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install pytest
+        run: python -m pip install --upgrade pip pytest
+      - name: Run NeMo detector tests
+        run: python -m pytest -q
+        working-directory: docker/gateway-host/nemo
+
+  gateway-tests:
+    name: Gateway control-plane tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install façade + test deps
+        run: python -m pip install --upgrade pip -r gateway/requirements-dev.txt
+      - name: Run gateway tests (auth, control plane, guardrail, audit)
+        run: python -m pytest -q
+        working-directory: gateway
