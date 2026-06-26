@@ -41,6 +41,20 @@ class KeyCreate(BaseModel):
     rpm_limit: Optional[int] = None
 
 
+class OnboardRequest(BaseModel):
+    org: str
+    email: Optional[str] = None
+    use_case: Optional[str] = None
+    tier: str = Field(default="dev")
+    boundary: Optional[str] = None
+    max_budget: Optional[float] = None
+    rpm_limit: Optional[int] = None
+
+
+class DecisionBody(BaseModel):
+    approved_by: Optional[str] = None
+
+
 def _store(request: Request) -> Store:
     return request.app.state.store
 
@@ -162,6 +176,65 @@ def build_router() -> APIRouter:
         _require_admin(request)
         from .audit import verify_chain
         return verify_chain(request.app.state.settings.audit_log)
+
+    # -- onboarding: access requests -> approve -> provisioned scoped key ---
+    @r.get("/requests")
+    async def list_requests(request: Request):
+        _require_admin(request)
+        return {"data": _store(request).list_requests()}
+
+    @r.post("/requests")
+    async def admin_create_request(body: OnboardRequest, request: Request):
+        _require_admin(request)
+        return _store(request).create_request(
+            org=body.org, email=body.email, use_case=body.use_case, tier=body.tier,
+            boundary=body.boundary, max_budget=body.max_budget, rpm_limit=body.rpm_limit)
+
+    @r.post("/requests/{rid}/approve")
+    async def approve_request(rid: str, body: DecisionBody, request: Request):
+        _require_admin(request)
+        store = _store(request)
+        req = store.get_request(rid)
+        if not req:
+            raise HTTPException(status_code=404, detail={"error": {
+                "message": "request not found", "type": "invalid_request_error"}})
+        if req["status"] != "pending":
+            raise HTTPException(status_code=400, detail={"error": {
+                "message": f"request already {req['status']}", "type": "invalid_request_error"}})
+        approver = (body.approved_by or "admin").strip()
+        if req["tier"] == "gov" and not approver:
+            raise HTTPException(status_code=400, detail={"error": {
+                "message": "gov-tier approval requires approved_by (ADR-018).",
+                "type": "invalid_request_error", "code": "approval_required"}})
+        # Approving the request IS the provisioning step: stand up the org (team) +
+        # a scoped key in one action. The gov approval gate is satisfied by approved_by.
+        team = store.create_team(alias=req["org"], tier=req["tier"],
+                                 max_budget=req["max_budget"],
+                                 approved_by=approver if req["tier"] == "gov" else None)
+        key = store.create_key(team_id=team["id"], alias=f"{req['org']}-key",
+                               max_budget=req["max_budget"], rpm_limit=req["rpm_limit"])
+        store.mark_request(rid, status="approved", decided_by=approver,
+                           team_id=team["id"], key_id=key["id"])
+        # The plaintext key is returned ONCE — deliver to the org over a secure channel.
+        return {"request_id": rid, "status": "approved", "org": req["org"],
+                "team_id": team["id"], "key": key["key"]}
+
+    @r.post("/requests/{rid}/reject")
+    async def reject_request(rid: str, body: DecisionBody, request: Request):
+        _require_admin(request)
+        store = _store(request)
+        if not store.get_request(rid):
+            raise HTTPException(status_code=404, detail={"error": {
+                "message": "request not found", "type": "invalid_request_error"}})
+        store.mark_request(rid, status="rejected", decided_by=(body.approved_by or "admin"))
+        return {"request_id": rid, "status": "rejected"}
+
+    # -- live compliance evidence (control map computed from running signals) --
+    @r.get("/compliance")
+    async def compliance(request: Request):
+        _require_admin(request)
+        from . import compliance as comp
+        return comp.assess(request.app.state.settings.audit_log, _store(request))
 
     # -- models (proxied from the engine so the branded UI shows them too) --
     @r.get("/models")

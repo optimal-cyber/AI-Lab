@@ -60,6 +60,22 @@ CREATE TABLE IF NOT EXISTS spend_log (
     cost              REAL,
     ts                TEXT
 );
+CREATE TABLE IF NOT EXISTS access_requests (
+    id          TEXT PRIMARY KEY,
+    org         TEXT NOT NULL,
+    email       TEXT,
+    use_case    TEXT,
+    tier        TEXT NOT NULL DEFAULT 'dev',
+    boundary    TEXT,
+    max_budget  REAL,
+    rpm_limit   INTEGER,
+    status      TEXT NOT NULL DEFAULT 'pending',
+    decided_by  TEXT,
+    decided_at  TEXT,
+    team_id     TEXT,
+    key_id      TEXT,
+    created_at  TEXT NOT NULL
+);
 CREATE INDEX IF NOT EXISTS ix_keys_team ON keys(team_id);
 CREATE INDEX IF NOT EXISTS ix_spend_team ON spend_log(team_id);
 """
@@ -218,6 +234,42 @@ class Store:
             "by_team": [{"team_id": r["team_id"], "cost": round(r["c"], 6),
                          "requests": r["n"]} for r in by_team],
         }
+
+    # -- access requests (onboarding: request -> approve -> provision) -----
+    def create_request(self, *, org: str, email: Optional[str] = None,
+                       use_case: Optional[str] = None, tier: str = "dev",
+                       boundary: Optional[str] = None,
+                       max_budget: Optional[float] = None,
+                       rpm_limit: Optional[int] = None) -> Dict[str, Any]:
+        rid = "req_" + secrets.token_hex(8)
+        with self._lock:
+            self._db.execute(
+                "INSERT INTO access_requests(id,org,email,use_case,tier,boundary,"
+                "max_budget,rpm_limit,status,created_at) "
+                "VALUES(?,?,?,?,?,?,?,?,'pending',?)",
+                (rid, org, email, use_case, tier, boundary, max_budget, rpm_limit, _now()))
+            self._db.commit()
+        return self.get_request(rid)  # type: ignore[return-value]
+
+    def get_request(self, rid: str) -> Optional[Dict[str, Any]]:
+        row = self._db.execute(
+            "SELECT * FROM access_requests WHERE id=?", (rid,)).fetchone()
+        return dict(row) if row else None
+
+    def list_requests(self) -> List[Dict[str, Any]]:
+        rows = self._db.execute(
+            "SELECT * FROM access_requests ORDER BY created_at DESC").fetchall()
+        return [dict(r) for r in rows]
+
+    def mark_request(self, rid: str, *, status: str, decided_by: Optional[str],
+                     team_id: Optional[str] = None, key_id: Optional[str] = None) -> bool:
+        with self._lock:
+            cur = self._db.execute(
+                "UPDATE access_requests SET status=?,decided_by=?,decided_at=?,"
+                "team_id=?,key_id=? WHERE id=?",
+                (status, decided_by, _now(), team_id, key_id, rid))
+            self._db.commit()
+            return cur.rowcount > 0
 
 
 def _team_row(r: sqlite3.Row) -> Dict[str, Any]:

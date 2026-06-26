@@ -64,6 +64,26 @@
   </div>
 
   <div class="card">
+    <h2>Access requests — onboarding<span id="req_sum" class="sub"></span></h2>
+    <table id="requests"><thead><tr>
+      <th>Org</th><th>Email</th><th>Tier</th><th>Boundary</th><th>Use case</th>
+      <th>Status</th><th>Decided by</th><th></th></tr></thead><tbody></tbody></table>
+    <details style="margin-top:12px">
+      <summary style="cursor:pointer; color:var(--muted)">+ Submit a new access request (org intake)</summary>
+      <div style="max-width:440px; margin-top:8px">
+        <label>Organization</label><input id="o_org" placeholder="Aegis Defense Corp">
+        <label>Contact email</label><input id="o_email" placeholder="ciso@aegis.example">
+        <label>Tier</label><select id="o_tier"><option value="dev">dev</option><option value="gov">gov</option></select>
+        <label>Accreditation boundary (optional)</label><input id="o_boundary" placeholder="IL4 / GovCloud">
+        <label>Use case (optional)</label><input id="o_use" placeholder="governed agent access">
+        <label>Monthly budget (USD, optional)</label><input id="o_budget" type="number" placeholder="100">
+        <button onclick="submitOnboard()">Submit request</button>
+        <div id="o_msg" style="font-size:12px; margin-top:6px"></div>
+      </div>
+    </details>
+  </div>
+
+  <div class="card">
     <h2>Models (via the gateway)</h2>
     <table id="models"><thead><tr><th>Model</th><th>Tier</th></tr></thead><tbody></tbody></table>
   </div>
@@ -115,6 +135,18 @@
     <table id="keys"><thead><tr><th>Alias</th><th>Team</th><th>Spend / budget</th>
       <th>Rate</th><th>Active</th><th>ID</th><th></th></tr></thead><tbody></tbody></table>
   </div>
+
+  <div class="card">
+    <h2>Compliance evidence — computed live<span id="comp_sum" class="sub"></span></h2>
+    <div style="margin-bottom:10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+      <button class="ghost" onclick="loadCompliance()">Refresh</button>
+      <span id="comp_meta" class="sub"></span>
+    </div>
+    <table id="compliance"><thead><tr>
+      <th>NIST 800-53</th><th>CMMC L2</th><th>Control</th><th>Implemented by</th>
+      <th>Live evidence</th><th>Status</th></tr></thead><tbody></tbody></table>
+    <div class="sub" id="comp_disclaimer" style="margin-top:8px"></div>
+  </div>
 </main>
 
 <script>
@@ -156,7 +188,7 @@ async function refresh() {
        <td>${k.active ? `<button class=ghost onclick="revoke('${k.id}')">revoke</button>` : ''}</td></tr>`
       ).join('') || empty(7);
     $('k_team').innerHTML = teams.map(t => `<option value="${t.id}">${esc(t.alias)}</option>`).join('');
-    loadAudit();
+    loadAudit(); loadRequests(); loadCompliance();
     msg('Connected — ' + teams.length + ' teams, ' + keys.length + ' keys.', true);
   } catch (e) { msg('Error: ' + e.message, false); }
 }
@@ -209,6 +241,75 @@ async function verifyChain() {
     if (r.ok) { el.textContent = `✓ chain intact — ${r.count} rows, tamper-evident`; el.className = 'ok'; }
     else { el.textContent = `⚠ chain BROKEN at row ${r.broken_at} (${r.reason})`; el.className = 'err'; }
   } catch (e) { el.textContent = 'verify error: ' + e.message; el.className = 'err'; }
+}
+
+// -- Onboarding: access requests -> approve -> provisioned scoped key --------
+async function loadRequests() {
+  try {
+    const reqs = (await api('GET', '/requests')).data || [];
+    const pend = reqs.filter(r => r.status === 'pending').length;
+    $('req_sum').textContent = reqs.length ? ` — ${pend} pending, ${reqs.length} total` : ' — none yet';
+    $('requests').tBodies[0].innerHTML = reqs.map(r => {
+      const st = r.status === 'approved' ? '<span class=ok>approved</span>'
+        : r.status === 'rejected' ? '<span class=err>rejected</span>'
+        : '<span class=warn>pending</span>';
+      const act = r.status === 'pending'
+        ? `<button class=ghost onclick="approveReq('${r.id}')">approve</button> <button class=ghost onclick="rejectReq('${r.id}')">reject</button>` : '';
+      return `<tr><td>${esc(r.org)}</td><td>${esc(r.email || '—')}</td>
+        <td><span class="pill ${r.tier === 'gov' ? 'gov' : 'dev'}">${esc(r.tier)}</span></td>
+        <td>${esc(r.boundary || '—')}</td><td>${esc(r.use_case || '—')}</td>
+        <td>${st}</td><td>${esc(r.decided_by || '—')}</td><td>${act}</td></tr>`;
+    }).join('') || empty(8);
+  } catch (e) { msg('Requests error: ' + e.message, false); }
+}
+async function submitOnboard() {
+  const o = $('o_msg');
+  try {
+    const b = { org: $('o_org').value.trim(), email: $('o_email').value || null,
+                tier: $('o_tier').value, boundary: $('o_boundary').value || null,
+                use_case: $('o_use').value || null };
+    const bud = parseFloat($('o_budget').value); if (!isNaN(bud)) b.max_budget = bud;
+    if (!b.org) { o.textContent = 'Organization is required.'; o.className = 'err'; return; }
+    const resp = await fetch('/onboard', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) });
+    const d = await resp.json();
+    if (!resp.ok) throw new Error((d.detail && d.detail.error && d.detail.error.message) || resp.status);
+    o.textContent = `Request ${d.id} submitted — pending review.`; o.className = 'ok';
+    ['o_org','o_email','o_boundary','o_use','o_budget'].forEach(i => $(i).value = '');
+    loadRequests();
+  } catch (e) { o.textContent = 'Error: ' + e.message; o.className = 'err'; }
+}
+async function approveReq(id) {
+  const who = prompt('Approver name (required for gov tier):', 'admin');
+  if (who === null) return;
+  try {
+    const d = await api('POST', '/requests/' + id + '/approve', { approved_by: who });
+    $('newkey').innerHTML = `<label>Provisioned key for ${esc(d.org)} (shown once)</label><code>${esc(d.key)}</code>`;
+    msg(`Approved ${d.org} — scoped key provisioned (shown in "New virtual key").`, true);
+    refresh();
+  } catch (e) { msg('Error: ' + e.message, false); }
+}
+async function rejectReq(id) {
+  try { await api('POST', '/requests/' + id + '/reject', {}); msg('Request rejected.', true); refresh(); }
+  catch (e) { msg('Error: ' + e.message, false); }
+}
+
+// -- Compliance evidence: the control map computed from live signals ---------
+async function loadCompliance() {
+  try {
+    const r = await api('GET', '/compliance');
+    const s = r.summary || {};
+    $('comp_sum').textContent = ` — ${s.operating}/${s.controls} operating`
+      + (s.failed ? `, ${s.failed} FAILED` : '');
+    $('comp_meta').textContent = `generated ${(r.generated || '').replace('T', ' ').replace('+00:00', 'Z')} · ${(r.frameworks || []).join(' · ')}`;
+    $('compliance').tBodies[0].innerHTML = (r.controls || []).map(c => {
+      const st = c.status === 'operating' ? '<span class=ok>operating</span>'
+        : c.status === 'FAILED' ? '<span class=err>FAILED</span>' : '<span class=warn>ready</span>';
+      return `<tr><td><code>${esc(c.nist)}</code></td><td><code>${esc(c.cmmc)}</code></td>
+        <td>${esc(c.name)}</td><td class="sub">${esc(c.by)}</td>
+        <td>${esc(c.evidence)}</td><td>${st}</td></tr>`;
+    }).join('') || empty(6);
+    $('comp_disclaimer').textContent = r.disclaimer || '';
+  } catch (e) { msg('Compliance error: ' + e.message, false); }
 }
 
 async function createTeam() {

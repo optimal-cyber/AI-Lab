@@ -123,6 +123,23 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
         return {"service": cfg.name, "api": "openai-compatible",
                 "endpoints": ["/v1/chat/completions", "/v1/models"]}
 
+    @app.post("/onboard", include_in_schema=False)
+    async def onboard(body: admin_mod.OnboardRequest,
+                      store: Optional[Store] = Depends(get_store)):
+        # Public intake (network-gated by Cloudflare Access in the lab): an
+        # organization submits an access request. This only creates a PENDING
+        # record — an admin must approve it to provision a scoped key (see
+        # /admin/requests). No access is granted by submitting.
+        if store is None:
+            raise HTTPException(status_code=503, detail={"error": {
+                "message": "Onboarding unavailable (control plane off).",
+                "type": "service_unavailable"}})
+        req = store.create_request(
+            org=body.org, email=body.email, use_case=body.use_case, tier=body.tier,
+            boundary=body.boundary, max_budget=body.max_budget, rpm_limit=body.rpm_limit)
+        return {"id": req["id"], "status": req["status"], "org": req["org"],
+                "message": "Request received — an administrator will review and provision access."}
+
     @app.get("/health")
     async def health(cfg: Settings = Depends(get_settings)):
         return {"status": "ok", "service": cfg.name,
