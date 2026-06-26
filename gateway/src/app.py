@@ -168,7 +168,9 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
         stream = bool(body.get("stream"))
 
         def _row(**extra):
+            tier, cloud = _boundary(model)
             return dict(request_id=rid, key=fp, model=model, stream=stream,
+                        tier=tier, cloud=cloud,
                         duration_ms=round((time.perf_counter() - t0) * 1000, 1),
                         guardrail_enforce=cfg.guardrail_enforce, **extra)
 
@@ -281,6 +283,25 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
         return JSONResponse(data, status_code=resp.status_code)
 
     return app
+
+
+def _boundary(model):
+    """Derive the serving boundary from the model id for the audit evidence:
+    the access tier (dev/gov) and the cloud/provider the call routes to."""
+    m = model or ""
+    tier = "gov" if m.startswith("gov/") else "dev"
+    base = m.split("/", 1)[1] if "/" in m else m
+    if tier == "gov":
+        cloud = "govcloud"
+    elif base.startswith(("gpt", "o1", "o3", "o4")):
+        cloud = "openai"
+    elif base.startswith("claude"):
+        cloud = "anthropic"
+    elif base.startswith("gemini"):
+        cloud = "google"
+    else:
+        cloud = "other"
+    return tier, cloud
 
 
 def _upstream_headers(headers: dict, cfg: Settings) -> dict:

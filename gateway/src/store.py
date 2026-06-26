@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS keys (
     team_id     TEXT REFERENCES teams(id),
     models_json TEXT NOT NULL DEFAULT '[]',
     max_budget  REAL,
+    rpm_limit   INTEGER,
     spend       REAL NOT NULL DEFAULT 0,
     expires_at  TEXT,
     active      INTEGER NOT NULL DEFAULT 1,
@@ -85,6 +86,15 @@ class Store:
         self._db.execute("PRAGMA foreign_keys=ON")
         self._db.executescript(SCHEMA)
         self._db.commit()
+        self._migrate()
+
+    def _migrate(self) -> None:
+        """Add columns introduced after a db was first created (idempotent)."""
+        cols = {r["name"] for r in self._db.execute("PRAGMA table_info(keys)").fetchall()}
+        with self._lock:
+            if "rpm_limit" not in cols:
+                self._db.execute("ALTER TABLE keys ADD COLUMN rpm_limit INTEGER")
+            self._db.commit()
 
     def close(self) -> None:
         with self._lock:
@@ -120,10 +130,11 @@ class Store:
     def create_key(self, *, team_id: Optional[str] = None, alias: Optional[str] = None,
                    models: Optional[List[str]] = None,
                    max_budget: Optional[float] = None,
-                   expires_at: Optional[str] = None) -> Dict[str, Any]:
+                   expires_at: Optional[str] = None,
+                   rpm_limit: Optional[int] = None) -> Dict[str, Any]:
         return self._insert_key("sk-" + secrets.token_urlsafe(32), team_id=team_id,
                                 alias=alias, models=models, max_budget=max_budget,
-                                expires_at=expires_at)
+                                expires_at=expires_at, rpm_limit=rpm_limit)
 
     def create_key_with_plaintext(self, plaintext: str, *, team_id: Optional[str] = None,
                                   alias: Optional[str] = None,
@@ -141,15 +152,15 @@ class Store:
                                 models=models, max_budget=max_budget, expires_at=expires_at)
 
     def _insert_key(self, plaintext: str, *, team_id, alias, models,
-                    max_budget, expires_at) -> Dict[str, Any]:
+                    max_budget, expires_at, rpm_limit=None) -> Dict[str, Any]:
         kid = "key_" + secrets.token_hex(8)
         with self._lock:
             self._db.execute(
                 "INSERT INTO keys(id,key_hash,alias,team_id,models_json,"
-                "max_budget,spend,expires_at,active,created_at) "
-                "VALUES(?,?,?,?,?,?,0,?,1,?)",
+                "max_budget,rpm_limit,spend,expires_at,active,created_at) "
+                "VALUES(?,?,?,?,?,?,?,0,?,1,?)",
                 (kid, hash_key(plaintext), alias, team_id,
-                 json.dumps(models or []), max_budget, expires_at, _now()))
+                 json.dumps(models or []), max_budget, rpm_limit, expires_at, _now()))
             self._db.commit()
         out = self.get_key(kid)
         assert out is not None

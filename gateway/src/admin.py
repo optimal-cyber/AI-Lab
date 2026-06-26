@@ -38,6 +38,7 @@ class KeyCreate(BaseModel):
     models: List[str] = Field(default_factory=list)
     max_budget: Optional[float] = None
     expires_at: Optional[str] = None
+    rpm_limit: Optional[int] = None
 
 
 def _store(request: Request) -> Store:
@@ -99,7 +100,8 @@ def build_router() -> APIRouter:
         # The plaintext key is in the response ONCE — deliver over a secure channel.
         return _store(request).create_key(
             team_id=body.team_id, alias=body.alias, models=body.models,
-            max_budget=body.max_budget, expires_at=body.expires_at)
+            max_budget=body.max_budget, expires_at=body.expires_at,
+            rpm_limit=body.rpm_limit)
 
     @r.get("/keys")
     async def list_keys(request: Request, team_id: Optional[str] = None):
@@ -153,6 +155,13 @@ def build_router() -> APIRouter:
             pass
         rows.reverse()  # newest first
         return {"data": rows}
+
+    # -- audit integrity: verify the tamper-evident hash chain -------------
+    @r.get("/audit/verify")
+    async def audit_verify(request: Request):
+        _require_admin(request)
+        from .audit import verify_chain
+        return verify_chain(request.app.state.settings.audit_log)
 
     # -- models (proxied from the engine so the branded UI shows them too) --
     @r.get("/models")

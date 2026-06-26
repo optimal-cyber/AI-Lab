@@ -69,14 +69,16 @@
   </div>
 
   <div class="card">
-    <h2>Audit &amp; evidence — append-only ledger<span id="audit_sum" class="sub"></span></h2>
-    <div style="display:flex; gap:8px; margin-bottom:10px">
+    <h2>Audit &amp; evidence — hash-chained, append-only ledger<span id="audit_sum" class="sub"></span></h2>
+    <div style="display:flex; gap:8px; margin-bottom:10px; align-items:center; flex-wrap:wrap">
       <button class="ghost" onclick="loadAudit()">Refresh</button>
       <button class="ghost" onclick="exportAudit()">Export CSV</button>
+      <button class="ghost" onclick="verifyChain()">Verify integrity</button>
+      <span id="audit_verify" style="font-size:12px"></span>
     </div>
     <table id="audit"><thead><tr>
-      <th>Time (UTC)</th><th>Decision</th><th>Model</th><th>Identity (fingerprint)</th>
-      <th>Tokens</th><th>ms</th><th>Request ID</th></tr></thead><tbody></tbody></table>
+      <th>Time (UTC)</th><th>Decision</th><th>Model</th><th>Boundary</th>
+      <th>Identity (fingerprint)</th><th>Tokens</th><th>ms</th><th>Request ID</th></tr></thead><tbody></tbody></table>
   </div>
 
   <div class="row">
@@ -96,6 +98,7 @@
       <label>Team</label><select id="k_team"></select>
       <label>Alias</label><input id="k_alias" placeholder="acme-ci">
       <label>Max budget (USD, optional)</label><input id="k_budget" type="number">
+      <label>Rate limit (requests/min, optional)</label><input id="k_rpm" type="number" placeholder="60">
       <button onclick="createKey()">Generate key</button>
       <div id="newkey"></div>
     </div>
@@ -110,7 +113,7 @@
   <div class="card">
     <h2>Keys</h2>
     <table id="keys"><thead><tr><th>Alias</th><th>Team</th><th>Spend / budget</th>
-      <th>Active</th><th>ID</th><th></th></tr></thead><tbody></tbody></table>
+      <th>Rate</th><th>Active</th><th>ID</th><th></th></tr></thead><tbody></tbody></table>
   </div>
 </main>
 
@@ -147,10 +150,11 @@ async function refresh() {
     $('keys').tBodies[0].innerHTML = keys.map(k =>
       `<tr><td>${esc(k.alias || '—')}</td><td>${esc(byId[k.team_id] || '—')}</td>
        <td>${money(k.spend, k.max_budget)}</td>
+       <td>${k.rpm_limit ? k.rpm_limit + '/min' : '—'}</td>
        <td>${k.active ? '<span class=ok>yes</span>' : '<span class=err>revoked</span>'}</td>
        <td><code>${k.id}</code></td>
        <td>${k.active ? `<button class=ghost onclick="revoke('${k.id}')">revoke</button>` : ''}</td></tr>`
-      ).join('') || empty(6);
+      ).join('') || empty(7);
     $('k_team').innerHTML = teams.map(t => `<option value="${t.id}">${esc(t.alias)}</option>`).join('');
     loadAudit();
     msg('Connected — ' + teams.length + ' teams, ' + keys.length + ' keys.', true);
@@ -177,24 +181,34 @@ async function loadAudit() {
       if (label === 'allowed') ok++; else if (label === 'denied') deny++;
       else if (label === 'blocked') block++;
       const tok = (d.prompt_tokens || 0) + (d.completion_tokens || 0);
+      const bnd = d.tier ? (d.tier + (d.cloud ? ' · ' + d.cloud : '')) : '—';
       return `<tr><td>${esc((d.ts || '').replace('T', ' ').replace('+00:00', ''))}</td>
         <td><span class="${cls}">${label}</span></td>
         <td><code>${esc(d.model || '—')}</code></td>
+        <td><span class="pill ${d.tier === 'gov' ? 'gov' : 'dev'}">${esc(bnd)}</span></td>
         <td><code>${esc(d.key || '—')}</code></td>
         <td>${tok || '—'}</td><td>${d.duration_ms ?? '—'}</td>
         <td><code>${esc((d.request_id || '').slice(0, 12))}</code></td></tr>`;
-    }).join('') || empty(7);
+    }).join('') || empty(8);
     $('audit_sum').textContent = AUDIT.length
       ? ` — ${AUDIT.length} events · ${ok} allowed · ${block} blocked · ${deny} denied`
       : ' — none yet';
   } catch (e) { msg('Audit error: ' + e.message, false); }
 }
 function exportAudit() {
-  const cols = ['ts','status','phase','model','key','prompt_tokens','completion_tokens','duration_ms','cost','request_id'];
+  const cols = ['ts','status','phase','tier','cloud','model','key','prompt_tokens','completion_tokens','duration_ms','cost','request_id','prev','hash'];
   const out = [cols.join(',')].concat(AUDIT.map(d => cols.map(c => JSON.stringify(d[c] ?? '')).join(',')));
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([out.join('\n')], { type: 'text/csv' }));
   a.download = 'optimal-audit-evidence.csv'; a.click();
+}
+async function verifyChain() {
+  const el = $('audit_verify'); el.textContent = 'verifying…'; el.className = '';
+  try {
+    const r = await api('GET', '/audit/verify');
+    if (r.ok) { el.textContent = `✓ chain intact — ${r.count} rows, tamper-evident`; el.className = 'ok'; }
+    else { el.textContent = `⚠ chain BROKEN at row ${r.broken_at} (${r.reason})`; el.className = 'err'; }
+  } catch (e) { el.textContent = 'verify error: ' + e.message; el.className = 'err'; }
 }
 
 async function createTeam() {
@@ -209,6 +223,7 @@ async function createKey() {
   try {
     const b = { team_id: $('k_team').value || null, alias: $('k_alias').value || null };
     const bud = parseFloat($('k_budget').value); if (!isNaN(bud)) b.max_budget = bud;
+    const rpm = parseInt($('k_rpm').value, 10); if (!isNaN(rpm)) b.rpm_limit = rpm;
     const k = await api('POST', '/keys', b);
     $('newkey').innerHTML = `<label>New key (shown once)</label><code>${k.key}</code>`;
     msg('Key generated — copy it now, it is not stored.', true); refresh();

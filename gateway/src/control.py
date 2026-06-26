@@ -8,11 +8,40 @@ successful call, record spend against the key and its team.
 
 from __future__ import annotations
 
+import threading
+import time
+from collections import defaultdict, deque
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional, Tuple
 
 from . import pricing
 from .store import Store
+
+
+class _RateLimiter:
+    """In-process per-key sliding-window request limiter (requests/min). The façade
+    runs a single uvicorn worker, so this is authoritative for the deployment."""
+
+    def __init__(self) -> None:
+        self._win: Dict[str, deque] = defaultdict(deque)
+        self._lock = threading.Lock()
+
+    def check_and_record(self, key_id: str, rpm: int) -> bool:
+        if not rpm or rpm <= 0:
+            return True
+        now = time.monotonic()
+        cutoff = now - 60.0
+        with self._lock:
+            dq = self._win[key_id]
+            while dq and dq[0] < cutoff:
+                dq.popleft()
+            if len(dq) >= rpm:
+                return False
+            dq.append(now)
+            return True
+
+
+_RATE = _RateLimiter()
 
 
 class Denied(Exception):
@@ -80,6 +109,12 @@ def authorize(store: Store, plaintext_key: str, model: Optional[str],
     # Budgets — hard ceilings. Check both the key and its team.
     if not enforce_budget:
         return {"key": key, "team": team}
+    # Rate limit (per-key requests/min) — shed a flood before budget/upstream work.
+    rpm = key.get("rpm_limit")
+    if rpm and not _RATE.check_and_record(key["id"], int(rpm)):
+        raise Denied(429, "rate_limited",
+                     f"Rate limit exceeded ({rpm} requests/min for this key).",
+                     type_="rate_limit_error")
     if key.get("max_budget") is not None and key["spend"] >= key["max_budget"]:
         raise Denied(400, "budget_exceeded",
                      "Key budget exhausted.", type_="budget_exceeded")
