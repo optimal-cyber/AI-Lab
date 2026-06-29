@@ -13,7 +13,9 @@ implementation. Every phase lands behind one or more ADRs in
 > [`control-mapping.md`](control-mapping.md). The gov boundaries are wired but not
 > live (no gov-cloud credentials in this lab) and remote TF state is not yet
 > migrated — both are the gates that open before a first real tenant. The *design*
-> is complete end-to-end; *going live* is provisioning, not more design.
+> is complete end-to-end; *going live* is provisioning, not more design. The
+> concrete GovCloud provisioning path (account → creds → egress → flip) is in
+> [`govcloud-go-live.md`](govcloud-go-live.md).
 
 > **Honesty guardrail (applies to every phase, non-negotiable):** this stays a
 > **reference architecture / pattern**. "Government-ready" describes a model
@@ -75,7 +77,8 @@ adding more clouds or gating tenants by tier.*
 - **Scope / key components:**
   - Wire additional providers in LiteLLM, each with creds in Secrets Manager,
     egress-allowlist entries, and a G1 posture tag:
-    - **Amazon Bedrock** (GovCloud region for the gov boundary; `anthropic.`-prefixed IDs),
+    - **Amazon Bedrock** (GovCloud region for the gov boundary; `anthropic.`- and
+      `openai.`-prefixed IDs — OpenAI GPT/GPT-OSS gained FedRAMP High + IL-4/5 there 2026-06-25),
     - **Azure OpenAI / Microsoft Foundry** (Azure Government),
     - **Google Vertex AI** (Assured Workloads).
   - A routing/failover policy: e.g. a logical `gov/claude-opus` that resolves

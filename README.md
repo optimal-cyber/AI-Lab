@@ -324,8 +324,13 @@ tag** ([ADR-014](docs/decisions.md)): the models above are the `dev` tier
 (commercial boundary), and a `gov` tier targets government-ready boundaries
 across **three clouds** — **AWS GovCloud** (Bedrock), **GCP Assured Workloads**
 (Vertex), and **Azure Government** (Azure OpenAI) — with `gov/claude-opus-4-8` a
-cross-cloud failover group ([ADR-015](docs/decisions.md)). Claude Platform on AWS
-is the full-parity Claude target. The `gov` entries are **config-ready but not
+cross-cloud failover group ([ADR-015](docs/decisions.md)). On AWS GovCloud
+(Bedrock) the `gov` tier now registers **OpenAI GPT, GPT-OSS, and Claude** — the
+OpenAI models [authorized at **FedRAMP High + DoD IL-4/IL-5** on
+2026-06-25](https://aws.amazon.com/about-aws/whats-new/2026/06/addl-bedrock-model-fedramp-il-5-govcloud/),
+running on Bedrock's zero-operator-access "Mantle" engine — so the most-requested
+commercial model now reaches the *same* government-ready boundary as Claude.
+Claude Platform on AWS is the full-parity Claude target. The `gov` entries are **config-ready but not
 live in this lab** — each goes live when that boundary's credentials and egress
 are provisioned (roadmap G1–G2). In this lab the endpoint is published
 **privately** — in-VPC clients reach it at

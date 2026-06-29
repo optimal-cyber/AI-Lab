@@ -14,6 +14,62 @@ visual control plane and the manual proofs for a more technical room.
 
 ---
 
+## Part 0 — cold start (instances are stopped between demos)
+
+The three lab instances sit **Stopped** between uses. AWS keeps each instance's
+**private IPv4 across stop/start** (released only on terminate), so the chat→façade
+wiring (`LITELLM_HOST_IP`) and the baked proxy IP stay valid — **no Terraform
+re-apply needed** on a normal stop/start. One ordering rule matters: the app hosts
+fetch their secrets from Secrets Manager **through the Squid proxy** on boot, so the
+**proxy must come up first**.
+
+```bash
+# 1) Start the Squid proxy FIRST; let it reach "running":
+aws ec2 start-instances --instance-ids i-05781a42730e8c906          # ai-lab-proxy
+
+# 2) Then the app hosts:
+aws ec2 start-instances --instance-ids i-01a422690a766bb64 \
+                                       i-0d350602ab870aa69           # gateway-host, chat-host
+# (IDs drift only if an instance is replaced — otherwise resolve by Name tag:
+#  ai-lab-proxy / ai-lab-gateway-host / ai-lab-chat-host.)
+```
+
+On boot, `ai-lab-secrets@<role>` regenerates the tmpfs `.env` and `ai-lab-stack@<role>`
+brings the compose stack up automatically. **If an app host booted before Squid was
+ready** (its secrets fetch would have failed), SSM in and re-kick:
+
+```bash
+aws ssm start-session --target i-01a422690a766bb64                 # gateway-host (no SSH — ADR-006)
+sudo systemctl restart ai-lab-secrets@gateway ai-lab-stack@gateway
+```
+
+**Redeploy current code** — only if you edited the repo since the last run (e.g. the
+new `gov/*` OpenAI models). From an SSM shell on gateway-host:
+
+```bash
+sudo git -C /opt/ai-lab/repo pull
+cd /opt/ai-lab/repo/docker/gateway-host
+sudo docker compose up -d --force-recreate litellm                 # config is a bind-mount; no rebuild
+```
+
+**Pre-flight the demo-critical secrets** are current — stale provider keys quietly
+degrade the live act: `lab/openai_api_key`, `lab/anthropic_api_key` (live calls),
+`lab/gateway_master_key` + `lab/gateway_bootstrap_key` (control plane / demo auth).
+Reseed any with `AWS_DEFAULT_REGION=us-east-1 ./scripts/seed-secrets.sh` (blank input
+leaves a secret unchanged).
+
+**Confirm green before you present** (and not 30 seconds before — give the tunnel a
+minute to re-establish):
+
+```bash
+cd /opt/ai-lab/repo && ./scripts/run-smoke-tests.sh
+# want: egress invariants, container health, façade auth gates (T-FA-1..3),
+#       gpt-4o + claude-opus-4-8 reachable (T-GW-1/2), injection blocked (T-GW-3),
+#       gov tier registered (T-GW-5)
+```
+
+---
+
 ## Part A — the operational demo (`scripts/demo.sh`)
 
 A single narrated script that drives the **live** gateway through the four pillars —
@@ -36,7 +92,9 @@ What the audience sees (all against the live system, ~15s):
 2. **FORWARD** — that *one* credential reaches frontier models across **multiple
    cloud providers** (Anthropic live; OpenAI registered). Government-ready
    boundaries (GovCloud / Azure Gov / Assured Workloads) are posture-tagged and
-   config-ready.
+   config-ready — including **OpenAI GPT / GPT-OSS on AWS GovCloud (Bedrock)**,
+   [authorized at FedRAMP High + DoD IL-4/5 on 2026-06-25](https://aws.amazon.com/about-aws/whats-new/2026/06/addl-bedrock-model-fedramp-il-5-govcloud/),
+   registered in the `gov` tier and one creds-and-allowlist flip from live.
 3. **GUARD** — a prompt-injection / data-exfiltration attempt is **blocked before
    any model sees it** (fail-closed, `$0` spent), with the finding category +
    severity surfaced and the matched phrase redacted.
@@ -76,9 +134,9 @@ Cloudflare Single Redirect on `gateway.optimallabs.io`: path `/` → 302 `/admin
    - **Keys** — mint scoped/budgeted virtual keys; revoke; per-key spend.
    - **Spend** — real-time metering per org/key.
 
-The **chat client** (`https://chat.optimallabs.io`, Open WebUI behind the same Okta
-gate) is the "anyone can use it" surface — but the OpenAI-compatible endpoint + the
-control plane, not the chat window, are "the gateway."
+The **chat client** (`https://chat.optimallabs.io`, the Optimal-branded chat app
+behind the same Okta gate) is the "anyone can use it" surface — but the
+OpenAI-compatible endpoint + the control plane, not the chat window, are "the gateway."
 
 ---
 

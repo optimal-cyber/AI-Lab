@@ -161,6 +161,15 @@
       (a live <code>sam_gov_lookup</code>, NIST 800-53, CMMC, POA&amp;Ms). An
       injection prompt is blocked pre-call by the NeMo guardrail — no provider
       request, no spend.</li>
+      <li><strong>Compliance posture tiers on every model.</strong> Each model
+      carries a <code>dev</code> (commercial) or <code>gov</code>
+      (government-ready) tag, so a virtual key can be gated by boundary. The
+      <code>gov</code> tier targets GovCloud across three clouds; on AWS GovCloud
+      (Bedrock) it registers <strong>OpenAI GPT, GPT-OSS, and Claude</strong> —
+      the OpenAI models <a href="https://aws.amazon.com/about-aws/whats-new/2026/06/addl-bedrock-model-fedramp-il-5-govcloud/">authorized
+      at FedRAMP High + DoD IL-4/IL-5 on 2026-06-25</a>, running on Bedrock's
+      zero-operator-access engine. Registered for posture today; live once that
+      boundary's GovCloud credentials are provisioned.</li>
       <li><strong>The LiteLLM Admin control plane</strong> (SSO-gated, at
       <code>/ui</code>). This is the screen that <em>is</em> the gateway: virtual
       keys, per-team budgets and live spend, request logs, guardrail blocks, and

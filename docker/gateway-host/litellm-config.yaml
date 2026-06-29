@@ -179,6 +179,37 @@ model_list:
       aws_region_name: us-gov-west-1
     model_info: { access_tier: gov, boundary: "AWS GovCloud (Bedrock)", fedramp: high, il: "IL4/IL5-eligible" }
   #
+  # --- gov-tier OpenAI on AWS GovCloud (Bedrock) — authorized 2026-06-25 --------
+  # AWS authorized OpenAI GPT, OpenAI GPT-OSS, and NVIDIA Nemotron on Amazon
+  # Bedrock in GovCloud (US) at FedRAMP High + DoD CC SRG IL-4/IL-5
+  # (aws.amazon.com/about-aws/whats-new/2026/06/addl-bedrock-model-fedramp-il-5-govcloud).
+  # They run on Bedrock's "Mantle" engine: serverless, zero operator access, and
+  # OpenAI-API-compatible — so going live here is a creds/egress change, not an
+  # integration. REGISTERED for posture exactly like gov/claude-opus-4-8 above:
+  # NO os.environ ref, so the model_list loads; a live CALL needs GovCloud creds +
+  # the Bedrock GovCloud endpoint on the Squid allowlist (until then it routes but
+  # the call fails — expected). Confirm the exact Bedrock model IDs against the
+  # GovCloud catalog (`aws bedrock list-foundation-models --region us-gov-west-1`)
+  # before enabling — the IDs below mirror the published ones but are uncallable
+  # until creds land, so a drift is harmless posture metadata, not a broken route.
+  - model_name: gov/gpt-oss-120b           # OpenAI GPT-OSS 120B — AWS GovCloud (Bedrock), posture-registered
+    litellm_params:
+      model: bedrock/openai.gpt-oss-120b-1:0
+      aws_region_name: us-gov-west-1
+    model_info: { access_tier: gov, boundary: "AWS GovCloud (Bedrock)", fedramp: high, il: "IL4/IL5", authorized: "2026-06-25" }
+  - model_name: gov/gpt-oss-20b            # OpenAI GPT-OSS 20B — AWS GovCloud (Bedrock), posture-registered
+    litellm_params:
+      model: bedrock/openai.gpt-oss-20b-1:0
+      aws_region_name: us-gov-west-1
+    model_info: { access_tier: gov, boundary: "AWS GovCloud (Bedrock)", fedramp: high, il: "IL4/IL5", authorized: "2026-06-25" }
+  - model_name: gov/gpt-5.5                 # OpenAI GPT (proprietary) — AWS GovCloud (Bedrock), posture-registered
+    litellm_params:
+      model: bedrock/openai.gpt-5.5
+      aws_region_name: us-gov-west-1
+    model_info: { access_tier: gov, boundary: "AWS GovCloud (Bedrock)", fedramp: high, il: "IL4/IL5", authorized: "2026-06-25" }
+  # NVIDIA Nemotron carries the same 2026-06-25 GovCloud authorization and drops in
+  # identically (model: bedrock/<nemotron-id>) — add when a gov tenant needs it.
+  #
   #  - model_name: gov/claude-opus-4-8        # GCP Vertex (Assured Workloads) — cross-cloud failover
   #    litellm_params:
   #      model: vertex_ai/claude-opus-4-8

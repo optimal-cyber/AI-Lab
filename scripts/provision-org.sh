@@ -72,7 +72,7 @@ SOFT=$(( BUDGET * 80 / 100 ))   # soft_budget alert threshold = 80% of max
 
 # Tier model allow-lists — keep in sync with docker/gateway-host/litellm-config.yaml.
 if [[ "${TIER}" == "gov" ]]; then
-  MODELS='["gov/claude-opus-4-8","gov/gpt-4o"]'
+  MODELS='["gov/claude-opus-4-8","gov/gpt-oss-120b","gov/gpt-oss-20b","gov/gpt-5.5"]'
 else
   MODELS='["gpt-4o","claude-fable-5","claude-opus-4-8","claude-sonnet-4-6","claude-haiku-4-5"]'
 fi
