@@ -143,7 +143,7 @@ def usage_tokens(data: Any) -> Tuple[int, int]:
 
 def record(store: Store, *, request_id: Optional[str], authz: Dict[str, Any],
            model: Optional[str], prompt_tokens: int, completion_tokens: int) -> float:
-    cost = pricing.cost_usd(model or "", prompt_tokens, completion_tokens)
+    cost, estimated = pricing.price(model or "", prompt_tokens, completion_tokens)
     key = authz.get("key") or {}
     team = authz.get("team") or {}
     tenant = authz.get("tenant") or {}
@@ -151,5 +151,38 @@ def record(store: Store, *, request_id: Optional[str], authz: Dict[str, Any],
         request_id=request_id, key_id=key.get("id"), team_id=team.get("id") or None,
         tenant_id=tenant.get("id") or None,
         model=model, prompt_tokens=prompt_tokens, completion_tokens=completion_tokens,
-        cost=cost)
+        cost=cost, estimated=estimated)
     return cost
+
+
+def _soft_threshold(obj: Dict[str, Any]) -> Optional[float]:
+    """A scope's soft-budget line: its explicit soft_budget, else 80% of its
+    max_budget, else None (no soft line to cross)."""
+    soft = obj.get("soft_budget")
+    if soft is not None:
+        return float(soft)
+    mx = obj.get("max_budget")
+    return round(0.8 * float(mx), 6) if mx is not None else None
+
+
+def soft_alerts(authz: Dict[str, Any], cost: float) -> list:
+    """Scopes (key/team) whose spend crosses its soft-budget line ON THIS request.
+
+    authz holds each scope's spend as of authorize() — i.e. BEFORE this request —
+    so we fire exactly once, on the crossing request, not on every later one. The
+    caller (app.py, which holds the auditor) records each as a budget_alert row."""
+    alerts = []
+    for scope, obj in (("key", authz.get("key")), ("team", authz.get("team"))):
+        if not obj:
+            continue
+        soft = _soft_threshold(obj)
+        if soft is None:
+            continue
+        before = float(obj.get("spend") or 0.0)
+        after = before + (cost or 0.0)
+        if before < soft <= after:
+            alerts.append({"scope": scope, "id": obj.get("id"),
+                           "alias": obj.get("alias"), "spend": round(after, 6),
+                           "soft_budget": round(soft, 6),
+                           "max_budget": obj.get("max_budget")})
+    return alerts

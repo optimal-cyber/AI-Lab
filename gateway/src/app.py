@@ -262,6 +262,10 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
                         cost = control_mod.record(store, request_id=rid, authz=authz,
                                                   model=model, prompt_tokens=pt,
                                                   completion_tokens=ct)
+                        for a in control_mod.soft_alerts(authz, cost or 0.0):
+                            audit.emit(**_row(status=resp.status_code, phase="budget_alert",
+                                              budget_scope=a["scope"], budget_alias=a["alias"],
+                                              spend=a["spend"], soft_budget=a["soft_budget"]))
                     billed = (cost if cost is not None else "no_usage") if metering else None
                     audit.emit(**_row(status=resp.status_code, phase="stream",
                                       # output rail on token streams remains a gap.
@@ -297,6 +301,10 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
         if authz is not None and store is not None:
             cost = control_mod.record(store, request_id=rid, authz=authz, model=model,
                                       prompt_tokens=pt, completion_tokens=ct)
+            for a in control_mod.soft_alerts(authz, cost or 0.0):
+                audit.emit(**_row(status=resp.status_code, phase="budget_alert",
+                                  budget_scope=a["scope"], budget_alias=a["alias"],
+                                  spend=a["spend"], soft_budget=a["soft_budget"]))
         audit.emit(**_row(status=resp.status_code,
                           prompt_tokens=pt or None, completion_tokens=ct or None,
                           cost=cost))

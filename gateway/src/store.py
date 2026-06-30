@@ -83,6 +83,7 @@ CREATE TABLE IF NOT EXISTS spend_log (
     prompt_tokens     INTEGER,
     completion_tokens INTEGER,
     cost              REAL,
+    estimated         INTEGER NOT NULL DEFAULT 0,
     ts                TEXT
 );
 CREATE TABLE IF NOT EXISTS access_requests (
@@ -148,6 +149,12 @@ class Store:
                         self._db.execute(f"PRAGMA table_info({table})").fetchall()}
                 if "tenant_id" not in cols:
                     self._db.execute(f"ALTER TABLE {table} ADD COLUMN tenant_id TEXT")
+            # Metering: flag spend rows priced from the fallback rate (non-authoritative).
+            scols = {r["name"] for r in
+                     self._db.execute("PRAGMA table_info(spend_log)").fetchall()}
+            if "estimated" not in scols:
+                self._db.execute(
+                    "ALTER TABLE spend_log ADD COLUMN estimated INTEGER NOT NULL DEFAULT 0")
             # Indexes that reference tenant_id — created here (after the column is
             # guaranteed to exist) rather than in SCHEMA, which runs before this.
             self._db.execute("CREATE INDEX IF NOT EXISTS ix_teams_tenant ON teams(tenant_id)")
@@ -351,7 +358,7 @@ class Store:
     def record_spend(self, *, request_id: Optional[str], key_id: Optional[str],
                      team_id: Optional[str], model: Optional[str],
                      prompt_tokens: int, completion_tokens: int, cost: float,
-                     tenant_id: Optional[str] = None) -> None:
+                     tenant_id: Optional[str] = None, estimated: bool = False) -> None:
         with self._lock:
             if key_id:
                 self._db.execute("UPDATE keys SET spend=spend+? WHERE id=?", (cost, key_id))
@@ -359,9 +366,10 @@ class Store:
                 self._db.execute("UPDATE teams SET spend=spend+? WHERE id=?", (cost, team_id))
             self._db.execute(
                 "INSERT INTO spend_log(request_id,tenant_id,key_id,team_id,model,"
-                "prompt_tokens,completion_tokens,cost,ts) VALUES(?,?,?,?,?,?,?,?,?)",
+                "prompt_tokens,completion_tokens,cost,estimated,ts) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?)",
                 (request_id, tenant_id, key_id, team_id, model, prompt_tokens,
-                 completion_tokens, cost, _now()))
+                 completion_tokens, cost, 1 if estimated else 0, _now()))
             self._db.commit()
 
     def spend_summary(self, tenant_id: Optional[str] = None) -> Dict[str, Any]:
@@ -393,7 +401,8 @@ class Store:
         and the tenant-facing 'my usage' view renders."""
         row = self._db.execute(
             "SELECT COALESCE(SUM(cost),0) c, COUNT(*) n, "
-            "COALESCE(SUM(prompt_tokens),0) pt, COALESCE(SUM(completion_tokens),0) ct "
+            "COALESCE(SUM(prompt_tokens),0) pt, COALESCE(SUM(completion_tokens),0) ct, "
+            "COALESCE(SUM(CASE WHEN estimated=1 THEN cost ELSE 0 END),0) ec "
             "FROM spend_log WHERE tenant_id=?", (tenant_id,)).fetchone()
         by_model = self._db.execute(
             "SELECT model, COALESCE(SUM(cost),0) c, COUNT(*) n, "
@@ -403,6 +412,7 @@ class Store:
         return {
             "tenant_id": tenant_id,
             "total_cost": round(row["c"], 6),
+            "estimated_cost": round(row["ec"], 6),  # portion priced from the fallback
             "total_requests": row["n"],
             "prompt_tokens": row["pt"],
             "completion_tokens": row["ct"],

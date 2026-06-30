@@ -233,6 +233,7 @@ const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'
 let AUDIT = [];
 function _decision(d) {
   const s = d.status, ph = d.phase || '';
+  if (ph === 'budget_alert') return ['soft-budget', 'warn']; // crossed soft cap
   if (s === 200) return ['allowed', 'ok'];
   if (ph === 'authz') return ['denied', 'err'];     // control-plane denial
   if (s === 400) return ['blocked', 'warn'];         // guardrail block
