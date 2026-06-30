@@ -50,3 +50,6 @@ dist/
 *.swp
 .idea/
 .vscode/
+
+# ---- Claude Code (personal, machine-local) ----
+.claude/settings.local.json
