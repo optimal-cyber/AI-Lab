@@ -84,6 +84,24 @@
   </div>
 
   <div class="card">
+    <h2>Tenants — isolated customer organizations<span id="ten_sum" class="sub"></span></h2>
+    <table id="tenants"><thead><tr>
+      <th>Organization</th><th>Slug</th><th>Tier</th><th>Status</th><th>Plan</th>
+      <th>Usage (cost · reqs)</th><th>ID</th><th></th></tr></thead><tbody></tbody></table>
+    <details style="margin-top:12px">
+      <summary style="cursor:pointer; color:var(--muted)">+ New tenant</summary>
+      <div style="max-width:440px; margin-top:8px">
+        <label>Organization name</label><input id="ten_name" placeholder="Acme Robotics">
+        <label>Tier</label><select id="ten_tier"><option value="dev">dev</option><option value="gov">gov</option></select>
+        <label>Plan (optional)</label><input id="ten_plan" placeholder="starter / pro / gov">
+        <label>Contact email (optional)</label><input id="ten_email" placeholder="ciso@acme.example">
+        <button onclick="createTenant()">Create tenant</button>
+        <div id="ten_msg" style="font-size:12px; margin-top:6px"></div>
+      </div>
+    </details>
+  </div>
+
+  <div class="card">
     <h2>Models (via the gateway)</h2>
     <table id="models"><thead><tr><th>Model</th><th>Tier</th></tr></thead><tbody></tbody></table>
   </div>
@@ -171,6 +189,8 @@ async function refresh() {
     const teams = (await api('GET', '/teams')).data;
     const keys = (await api('GET', '/keys')).data;
     const models = (await api('GET', '/models')).data || [];
+    const tenants = (await api('GET', '/tenants')).data || [];
+    const spend = await api('GET', '/spend');
     $('models').tBodies[0].innerHTML = models.map(m =>
       `<tr><td><code>${esc(m.id)}</code></td>
        <td><span class="pill ${m.tier}">${m.tier}</span></td></tr>`).join('') || empty(2);
@@ -188,8 +208,22 @@ async function refresh() {
        <td>${k.active ? `<button class=ghost onclick="revoke('${k.id}')">revoke</button>` : ''}</td></tr>`
       ).join('') || empty(7);
     $('k_team').innerHTML = teams.map(t => `<option value="${t.id}">${esc(t.alias)}</option>`).join('');
+    const tu = Object.fromEntries((spend.by_tenant || []).map(r => [r.tenant_id, r]));
+    $('tenants').tBodies[0].innerHTML = tenants.map(t => {
+      const u = tu[t.id] || {};
+      const st = t.status === 'active' ? '<span class=ok>active</span>' : '<span class=err>suspended</span>';
+      const act = t.status === 'active'
+        ? `<button class=ghost onclick="setTenant('${t.id}','suspend')">suspend</button>`
+        : `<button class=ghost onclick="setTenant('${t.id}','activate')">activate</button>`;
+      return `<tr><td>${esc(t.name)}</td><td><code>${esc(t.slug)}</code></td>
+        <td><span class="pill ${t.tier === 'gov' ? 'gov' : 'dev'}">${esc(t.tier)}</span></td>
+        <td>${st}</td><td>${esc(t.plan || '—')}</td>
+        <td>${u.cost != null ? '$' + u.cost.toFixed(2) + ' · ' + u.requests : '—'}</td>
+        <td><code>${t.id}</code></td><td>${act}</td></tr>`;
+    }).join('') || empty(8);
+    $('ten_sum').textContent = tenants.length ? ` — ${tenants.length} orgs` : ' — none yet';
     loadAudit(); loadRequests(); loadCompliance();
-    msg('Connected — ' + teams.length + ' teams, ' + keys.length + ' keys.', true);
+    msg('Connected — ' + tenants.length + ' tenants, ' + teams.length + ' teams, ' + keys.length + ' keys.', true);
   } catch (e) { msg('Error: ' + e.message, false); }
 }
 const empty = n => `<tr><td colspan="${n}" style="color:var(--muted)">none yet</td></tr>`;
@@ -333,6 +367,29 @@ async function createKey() {
 async function revoke(id) {
   try { await api('DELETE', '/keys/' + id); msg('Key revoked.', true); refresh(); }
   catch (e) { msg('Error: ' + e.message, false); }
+}
+
+// -- Tenants: the customer isolation boundary (create + suspend/activate) -----
+async function createTenant() {
+  const o = $('ten_msg');
+  try {
+    const b = { name: $('ten_name').value.trim(), tier: $('ten_tier').value,
+                plan: $('ten_plan').value || null, contact_email: $('ten_email').value || null };
+    if (!b.name) { o.textContent = 'Organization name is required.'; o.className = 'err'; return; }
+    await api('POST', '/tenants', b);
+    o.textContent = 'Tenant created.'; o.className = 'ok';
+    ['ten_name', 'ten_plan', 'ten_email'].forEach(i => $(i).value = '');
+    refresh();
+  } catch (e) { o.textContent = 'Error: ' + e.message; o.className = 'err'; }
+}
+async function setTenant(id, action) {
+  try {
+    await api('POST', '/tenants/' + id + '/' + action, {});
+    msg(action === 'suspend'
+      ? 'Tenant suspended — every key it owns is now refused at the auth gate.'
+      : 'Tenant reactivated — its keys work again.', true);
+    refresh();
+  } catch (e) { msg('Error: ' + e.message, false); }
 }
 
 // Brand the page from the façade's own name (GATEWAY_NAME) — this is our UI.
