@@ -28,6 +28,7 @@ _STATIC = os.path.join(os.path.dirname(__file__), "..", "static")
 from . import admin as admin_mod
 from . import auth as auth_mod
 from . import control as control_mod
+from . import portal as portal_mod
 from .audit import Auditor, key_fingerprint
 from .config import Settings, load
 from .guardrail import Guardrail
@@ -97,10 +98,16 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
     # The router self-guards via the master key; the UI page is network-gated
     # (Cloudflare Access + Okta in the lab) and collects the master key client-side.
     app.include_router(admin_mod.build_router())
+    # Customer portal — per-tenant self-service, scoped by a portal token (portal.py).
+    app.include_router(portal_mod.build_router())
 
     @app.get("/admin/ui", include_in_schema=False)
     async def admin_ui():
         return FileResponse(os.path.join(_STATIC, "admin.html"))
+
+    @app.get("/portal/ui", include_in_schema=False)
+    async def portal_ui():
+        return FileResponse(os.path.join(_STATIC, "portal.html"))
 
     # -- own static assets (logo, favicon) so branding never depends on an
     # external URL (the apex optimallabs.io logo host isn't always resolvable) --

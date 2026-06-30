@@ -103,8 +103,17 @@ CREATE TABLE IF NOT EXISTS access_requests (
     key_id      TEXT,
     created_at  TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS portal_tokens (
+    id          TEXT PRIMARY KEY,
+    token_hash  TEXT NOT NULL UNIQUE,
+    tenant_id   TEXT NOT NULL REFERENCES tenants(id),
+    alias       TEXT,
+    active      INTEGER NOT NULL DEFAULT 1,
+    created_at  TEXT NOT NULL
+);
 CREATE INDEX IF NOT EXISTS ix_keys_team ON keys(team_id);
 CREATE INDEX IF NOT EXISTS ix_spend_team ON spend_log(team_id);
+CREATE INDEX IF NOT EXISTS ix_portal_tenant ON portal_tokens(tenant_id);
 """
 
 
@@ -468,6 +477,49 @@ class Store:
             self._db.commit()
             return cur.rowcount > 0
 
+    # -- portal tokens (per-tenant customer-login credentials) -------------
+    # A portal token authenticates a CUSTOMER into a view scoped to ONE tenant
+    # (distinct from an API key, which authorizes model calls). Stored hashed;
+    # plaintext returned once at creation. Prefix `pt-` to tell it from `sk-`.
+    def create_portal_token(self, *, tenant_id: str,
+                            alias: Optional[str] = None) -> Dict[str, Any]:
+        pid = "ptk_" + secrets.token_hex(8)
+        plaintext = "pt-" + secrets.token_urlsafe(32)
+        with self._lock:
+            self._db.execute(
+                "INSERT INTO portal_tokens(id,token_hash,tenant_id,alias,active,created_at) "
+                "VALUES(?,?,?,?,1,?)",
+                (pid, hash_key(plaintext), tenant_id, alias, _now()))
+            self._db.commit()
+        out = self.get_portal_token(pid)
+        assert out is not None
+        out["token"] = plaintext  # returned ONCE, never stored
+        return out
+
+    def get_portal_token(self, pid: str) -> Optional[Dict[str, Any]]:
+        row = self._db.execute(
+            "SELECT * FROM portal_tokens WHERE id=?", (pid,)).fetchone()
+        return _portal_row(row) if row else None
+
+    def get_portal_token_by_plaintext(self, plaintext: str) -> Optional[Dict[str, Any]]:
+        row = self._db.execute(
+            "SELECT * FROM portal_tokens WHERE token_hash=?",
+            (hash_key(plaintext),)).fetchone()
+        return _portal_row(row) if row else None
+
+    def list_portal_tokens(self, tenant_id: str) -> List[Dict[str, Any]]:
+        rows = self._db.execute(
+            "SELECT * FROM portal_tokens WHERE tenant_id=? ORDER BY created_at",
+            (tenant_id,)).fetchall()
+        return [_portal_row(r) for r in rows]
+
+    def revoke_portal_token(self, pid: str) -> bool:
+        with self._lock:
+            cur = self._db.execute(
+                "UPDATE portal_tokens SET active=0 WHERE id=?", (pid,))
+            self._db.commit()
+            return cur.rowcount > 0
+
 
 def _team_row(r: sqlite3.Row) -> Dict[str, Any]:
     d = dict(r)
@@ -480,4 +532,11 @@ def _key_row(r: sqlite3.Row) -> Dict[str, Any]:
     d["models"] = json.loads(d.pop("models_json") or "[]")
     d["active"] = bool(d["active"])
     d.pop("key_hash", None)  # never expose the hash
+    return d
+
+
+def _portal_row(r: sqlite3.Row) -> Dict[str, Any]:
+    d = dict(r)
+    d["active"] = bool(d["active"])
+    d.pop("token_hash", None)  # never expose the hash
     return d

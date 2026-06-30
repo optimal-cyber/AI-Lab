@@ -146,6 +146,30 @@ def build_router() -> APIRouter:
                 "message": "tenant not found", "type": "invalid_request_error"}})
         return _store(request).tenant_usage(tenant_id)
 
+    # -- portal tokens: issue a customer a scoped login to their tenant ----
+    @r.post("/tenants/{tenant_id}/portal-tokens")
+    async def create_portal_token(tenant_id: str, request: Request):
+        _require_admin(request)
+        store = _store(request)
+        if not store.get_tenant(tenant_id):
+            raise HTTPException(status_code=404, detail={"error": {
+                "message": "tenant not found", "type": "invalid_request_error"}})
+        # The plaintext token is in the response ONCE — deliver to the customer securely.
+        return store.create_portal_token(tenant_id=tenant_id)
+
+    @r.get("/tenants/{tenant_id}/portal-tokens")
+    async def list_portal_tokens(tenant_id: str, request: Request):
+        _require_admin(request)
+        return {"data": _store(request).list_portal_tokens(tenant_id)}
+
+    @r.delete("/portal-tokens/{ptid}")
+    async def revoke_portal_token(ptid: str, request: Request):
+        _require_admin(request)
+        if not _store(request).revoke_portal_token(ptid):
+            raise HTTPException(status_code=404, detail={"error": {
+                "message": "portal token not found", "type": "invalid_request_error"}})
+        return {"id": ptid, "revoked": True}
+
     # -- billing: plans, usage -> invoice, payment-provider sync -----------
     @r.get("/plans")
     async def list_plans(request: Request):

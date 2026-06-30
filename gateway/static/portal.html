@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Optimal — Customer Portal</title>
+<link rel="icon" href="/static/optimal-horizon.svg">
+<style>
+  :root { --bg:#0b1020; --panel:#141b2e; --line:#27314d; --fg:#e7ecf6;
+          --muted:#9aa6c2; --accent:#5ea0ff; --bad:#f87171; --good:#4ade80; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font:14px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  header { display:flex; align-items:center; gap:12px; padding:16px 24px;
+           border-bottom:1px solid var(--line); background:var(--panel); }
+  header img { height:28px; }
+  header h1 { font-size:16px; font-weight:600; margin:0; letter-spacing:.2px; }
+  header .sub { color:var(--muted); font-size:12px; }
+  main { max-width:900px; margin:0 auto; padding:24px; display:grid; gap:20px; }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  @media(max-width:720px){ .row{ grid-template-columns:1fr; } }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px; }
+  .card h2 { font-size:13px; text-transform:uppercase; letter-spacing:.6px;
+             color:var(--muted); margin:0 0 12px; }
+  label { display:block; font-size:12px; color:var(--muted); margin:8px 0 3px; }
+  input { width:100%; padding:8px 10px; background:#0e1424; color:var(--fg);
+          border:1px solid var(--line); border-radius:7px; }
+  button { margin-top:12px; padding:8px 14px; background:var(--accent); color:#06122b;
+           border:0; border-radius:7px; font-weight:600; cursor:pointer; }
+  button.ghost { background:transparent; color:var(--muted); border:1px solid var(--line); }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); }
+  th { color:var(--muted); font-weight:500; }
+  code { background:#0e1424; padding:2px 6px; border-radius:5px; word-break:break-all; }
+  .pill { font-size:11px; padding:1px 7px; border-radius:999px; border:1px solid var(--line); }
+  .pill.gov { color:#fbbf24; border-color:#7c5e16; } .pill.dev { color:var(--accent); }
+  .big { font-size:26px; font-weight:600; } .ok { color:var(--good); } .err { color:var(--bad); }
+  .keybar { display:flex; gap:8px; align-items:end; } .keybar > div { flex:1; }
+  #msg { min-height:18px; font-size:12px; }
+  .stat { display:flex; gap:28px; flex-wrap:wrap; }
+</style>
+</head>
+<body>
+<header>
+  <img src="/static/optimal-horizon.svg" alt="Optimal" onerror="this.style.display='none'">
+  <div>
+    <h1>Optimal — Customer Portal</h1>
+    <div class="sub">Your organization's keys, usage &amp; invoice</div>
+  </div>
+</header>
+
+<main>
+  <div class="card">
+    <h2>Sign in</h2>
+    <div class="keybar">
+      <div>
+        <label>Portal token</label>
+        <input id="token" type="password" placeholder="pt-…" autocomplete="off">
+      </div>
+      <button onclick="connect()">Connect</button>
+    </div>
+    <div id="msg"></div>
+  </div>
+
+  <div class="row">
+    <div class="card">
+      <h2>Your organization</h2>
+      <div id="org" class="sub">Connect with your portal token to begin.</div>
+    </div>
+    <div class="card">
+      <h2>This month</h2>
+      <div class="stat">
+        <div><div class="sub">Invoice total</div><div id="inv_total" class="big">—</div></div>
+        <div><div class="sub">Raw usage</div><div id="usage_raw" class="big">—</div></div>
+      </div>
+      <div id="inv_note" class="sub" style="margin-top:8px"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Your API keys</h2>
+    <table id="keys"><thead><tr><th>Alias</th><th>Spend / budget</th><th>Rate</th>
+      <th>Active</th><th>ID</th><th></th></tr></thead><tbody></tbody></table>
+    <div class="keybar" style="margin-top:12px; max-width:560px">
+      <div><label>Alias</label><input id="k_alias" placeholder="my-app"></div>
+      <div><label>Max budget (USD, optional)</label><input id="k_budget" type="number"></div>
+      <div><label>Rate limit (rpm, optional)</label><input id="k_rpm" type="number" placeholder="60"></div>
+      <button onclick="mintKey()">Generate key</button>
+    </div>
+    <div id="newkey" style="margin-top:8px"></div>
+  </div>
+
+  <div class="card">
+    <h2>Usage by model</h2>
+    <table id="usage"><thead><tr><th>Model</th><th>Requests</th><th>Tokens</th>
+      <th>Cost</th></tr></thead><tbody></tbody></table>
+  </div>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const token = () => $('token').value.trim();
+const msg = (t, ok) => { const m = $('msg'); m.textContent = t; m.className = ok ? 'ok' : 'err'; };
+const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const empty = n => `<tr><td colspan="${n}" style="color:var(--muted)">none yet</td></tr>`;
+const money = (s, b) => '$' + (s ?? 0).toFixed(2) + (b != null ? ' / $' + b.toFixed(2) : '');
+
+async function api(method, path, body) {
+  const r = await fetch('/portal' + path, {
+    method, headers: { 'Authorization': 'Bearer ' + token(),
+                       'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error((data.detail && data.detail.error && data.detail.error.message) || r.status);
+  return data;
+}
+
+async function connect() {
+  try {
+    const me = await api('GET', '/me');
+    $('org').innerHTML =
+      `<div class="big">${esc(me.name)}</div>
+       <div style="margin-top:6px">
+         <span class="pill ${me.tier === 'gov' ? 'gov' : 'dev'}">${esc(me.tier)}</span>
+         &nbsp;plan: <code>${esc(me.plan || 'pass-through')}</code>
+         &nbsp;status: <span class="${me.status === 'active' ? 'ok' : 'err'}">${esc(me.status)}</span>
+       </div>`;
+    await Promise.all([loadKeys(), loadUsageAndInvoice()]);
+    msg('Connected.', true);
+  } catch (e) { msg('Error: ' + e.message, false); }
+}
+
+async function loadKeys() {
+  const keys = (await api('GET', '/keys')).data || [];
+  $('keys').tBodies[0].innerHTML = keys.map(k =>
+    `<tr><td>${esc(k.alias || '—')}</td><td>${money(k.spend, k.max_budget)}</td>
+     <td>${k.rpm_limit ? k.rpm_limit + '/min' : '—'}</td>
+     <td>${k.active ? '<span class=ok>yes</span>' : '<span class=err>revoked</span>'}</td>
+     <td><code>${k.id}</code></td>
+     <td>${k.active ? `<button class=ghost onclick="revokeKey('${k.id}')">revoke</button>` : ''}</td></tr>`
+  ).join('') || empty(6);
+}
+
+async function loadUsageAndInvoice() {
+  const u = await api('GET', '/usage');
+  $('usage').tBodies[0].innerHTML = (u.by_model || []).map(m =>
+    `<tr><td><code>${esc(m.model || '—')}</code></td><td>${m.requests}</td>
+     <td>${(m.prompt_tokens || 0) + (m.completion_tokens || 0)}</td>
+     <td>$${(m.cost || 0).toFixed(4)}</td></tr>`).join('') || empty(4);
+  $('usage_raw').textContent = '$' + (u.total_cost || 0).toFixed(2);
+  const inv = await api('GET', '/invoice');
+  $('inv_total').textContent = '$' + (inv.total || 0).toFixed(2);
+  $('inv_note').textContent = inv.estimated_note
+    || `${inv.plan.name} plan · usage ${inv.period && inv.period.since ? 'this period' : 'to date'}`;
+}
+
+async function mintKey() {
+  try {
+    const b = { alias: $('k_alias').value || null };
+    const bud = parseFloat($('k_budget').value); if (!isNaN(bud)) b.max_budget = bud;
+    const rpm = parseInt($('k_rpm').value, 10); if (!isNaN(rpm)) b.rpm_limit = rpm;
+    const k = await api('POST', '/keys', b);
+    $('newkey').innerHTML = `<label>New key (shown once — copy it now)</label><code>${esc(k.key)}</code>`;
+    ['k_alias', 'k_budget', 'k_rpm'].forEach(i => $(i).value = '');
+    msg('Key generated.', true); loadKeys();
+  } catch (e) { msg('Error: ' + e.message, false); }
+}
+
+async function revokeKey(id) {
+  try { await api('DELETE', '/keys/' + id); msg('Key revoked.', true); loadKeys(); }
+  catch (e) { msg('Error: ' + e.message, false); }
+}
+
+// Brand from the façade's own name (GATEWAY_NAME).
+(async () => {
+  try {
+    const info = await (await fetch('/')).json();
+    if (info && info.service) {
+      document.title = info.service + ' — Customer Portal';
+      const h = document.querySelector('header h1');
+      if (h) h.textContent = info.service + ' — Customer Portal';
+    }
+    if (info && info.logo) {
+      const img = document.querySelector('header img');
+      if (img) { img.src = info.logo; img.alt = info.service || 'Gateway'; }
+    }
+  } catch (e) { /* keep the static default */ }
+})();
+</script>
+</body>
+</html>
